@@ -1,50 +1,15 @@
 import express from 'express';
+import 'dotenv/config';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
-import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const db = new Database('prosync.db');
-
-let genAI: GoogleGenerativeAI | null = null;
-
-function getModel(modelName: string = "gemini-1.5-flash"): GenerativeModel {
-  const apiKey = (process.env.GEMINI_API_KEY || "").trim();
-  if (!genAI) {
-    genAI = new GoogleGenerativeAI(apiKey || 'dummy-key');
-  }
-  return genAI.getGenerativeModel({ model: modelName });
-}
-
-/**
- * Enhanced AI helper with smart fallbacks for demo purposes
- */
-async function generateContentSafe(prompt: string, fallback: any, isJson: boolean = true) {
-  const apiKey = (process.env.GEMINI_API_KEY || "").trim();
-  
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.length < 20) {
-    console.warn("AI: Using mock fallback (Invalid or placeholder API key)");
-    return fallback;
-  }
-
-  try {
-    const model = getModel();
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      ...(isJson ? { generationConfig: { responseMimeType: 'application/json' } } : {})
-    });
-    const text = result.response.text();
-    return isJson ? JSON.parse(text) : text;
-  } catch (err) {
-    console.error("AI Error, using fallback:", err);
-    return fallback;
-  }
-}
 
 // Initialize Database
 db.exec(`
@@ -349,6 +314,9 @@ async function startServer() {
   });
 
   const apiRouter = express.Router();
+
+  // API routes FIRST
+  apiRouter.get('/health', (req, res) => res.json({ status: 'ok' }));
 
   // Admin Endpoints
   apiRouter.get('/admin/analytics', isAdmin, (req, res) => {
@@ -707,6 +675,14 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  apiRouter.post('/skills/verify', (req, res) => {
+    const { user_id, name, verification_url } = req.body;
+    db.prepare('INSERT OR IGNORE INTO skills (name) VALUES (?)').run(name);
+    const skill = db.prepare('SELECT id FROM skills WHERE name = ?').get(name) as any;
+    db.prepare('INSERT OR REPLACE INTO user_skills (user_id, skill_id, verification_url, is_verified) VALUES (?, ?, ?, ?)').run(user_id, skill.id, verification_url, 1);
+    res.json({ success: true });
+  });
+
   apiRouter.post('/posts', (req, res) => {
     const { user_id, content, type, attachment_type, attachment_id, quiz_data, poll_data } = req.body;
     const result = db.prepare('INSERT INTO posts (user_id, content, type, attachment_type, attachment_id, quiz_data, poll_data) VALUES (?, ?, ?, ?, ?, ?, ?)').run(user_id, content, type || 'standard', attachment_type || null, attachment_id || null, quiz_data ? JSON.stringify(quiz_data) : null, poll_data ? JSON.stringify(poll_data) : null);
@@ -770,64 +746,7 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  // AI ENDPOINTS
-  apiRouter.post('/ai/rank-jobs', async (req, res) => {
-    const { query, jobs } = req.body;
-    if (!query || !jobs) return res.json([]);
-
-    const fallback = jobs.map((j: any) => j.id).sort(() => Math.random() - 0.5);
-    const prompt = `Rank these job IDs based on relevance to: "${query}". Return ONLY a JSON array of IDs. Jobs: ${JSON.stringify(jobs.map((j: any) => ({ id: j.id, title: j.title, description: j.description })))}`;
-    
-    const result = await generateContentSafe(prompt, fallback);
-    res.json(result);
-  });
-
-  apiRouter.post('/ai/optimize-post', async (req, res) => {
-    const { content } = req.body;
-    if (!content) return res.status(400).json({ error: 'Content required' });
-
-    const fallback = {
-      optimizedContent: content + "\n\n#Professional #Networking",
-      suggestedTags: ["career", "growth"],
-      quiz: { question: "What is the key takeaway?", options: ["Growth", "Stability", "Learning"], correctIndex: 0 },
-      poll: { question: "Do you agree?", options: ["Yes", "Maybe", "No"] }
-    };
-
-    const prompt = `Optimize this post for professional social network: "${content}". Return JSON: { optimizedContent, suggestedTags, quiz, poll }`;
-    
-    const result = await generateContentSafe(prompt, fallback);
-    res.json(result);
-  });
-
-  apiRouter.post('/ai/interactive-content', async (req, res) => {
-    const { topic, type } = req.body;
-    
-    const fallback = type === 'quiz' 
-      ? { question: `Tell me about ${topic}?`, options: ["Option A", "Option B", "Option C"], correctIndex: 0 }
-      : { question: `How do you feel about ${topic}?`, options: ["Great", "Okay", "Bad"] };
-
-    const prompt = `Generate a professional ${type} about "${topic}". Return JSON.`;
-    
-    const result = await generateContentSafe(prompt, fallback);
-    res.json(result);
-  });
-
-  apiRouter.post('/ai/shortlist-applicants', async (req, res) => {
-    const { jobDescription, applicants } = req.body;
-    if (!jobDescription || !applicants) return res.json([]);
-
-    const fallback = applicants.map((a: any) => ({
-      applicantId: a.user_id,
-      score: Math.floor(Math.random() * 40) + 60,
-      reasoning: "Strong match based on profile highlights and experience."
-    }));
-
-    const prompt = `Analyze these applicants for the job: "${jobDescription}". Return JSON array: { applicantId, score, reasoning }. Applicants: ${JSON.stringify(applicants.map((a: any) => ({ id: a.user_id, name: a.full_name, headline: a.headline })))}`;
-    
-    const result = await generateContentSafe(prompt, fallback);
-    res.json(result);
-  });
-
+  // AI logic has been moved to frontend.
   apiRouter.post('/user/preference/place', (req, res) => {
     const { user_id, place_id } = req.body;
     if (!user_id) return res.status(400).json({ error: 'Missing user_id' });

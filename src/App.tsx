@@ -43,7 +43,9 @@ import {
   Mail,
   Lock,
   Newspaper,
-  Zap
+  Zap,
+  Wand2,
+  ArrowRight
 } from 'lucide-react';
 import { AdminPanel } from './components/AdminPanel';
 import { ProfilePanel } from './components/ProfilePanel';
@@ -227,7 +229,9 @@ const PostCard = ({ post, onComment, isExpanded, currentUser, onApply, onRespond
                  <Avatar src={c.avatar_url} name={c.full_name} size="sm" />
                  <div className="bg-neutral-50 rounded-lg p-2 flex-1">
                    <p className="text-[10px] font-bold mb-1">{c.full_name}</p>
-                   <p className="text-xs text-neutral-700">{c.content}</p>
+                   <div className="markdown-body text-xs text-neutral-700">
+                     <Markdown>{c.content}</Markdown>
+                   </div>
                  </div>
                </div>
              ))}
@@ -328,6 +332,8 @@ export default function App() {
   // Slash Command and Interactive Elements
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [aiInstruction, setAiInstruction] = useState('');
   const [showFileGallery, setShowFileGallery] = useState(false);
   const [userFiles, setUserFiles] = useState<FileItem[]>([]);
   const [galleryFilter, setGalleryFilter] = useState<string>('all');
@@ -855,15 +861,18 @@ export default function App() {
     }
   };
 
-  const handleAiOptimizePost = async () => {
-    if (!postContent) return;
+  const handleAiMagicPost = async (instruction?: string) => {
     setIsAiLoading(true);
     try {
-      const optimization = await geminiService.optimizePost(postContent);
-      if (optimization) {
-        setAiOptimizedPost(optimization);
-        setPostContent(optimization.optimizedContent);
+      const result = await geminiService.magicPost(postContent, instruction);
+      if (result) {
+        setAiOptimizedPost(result);
+        setPostContent(result.optimizedContent);
+        setShowAiPrompt(false);
+        setAiInstruction('');
       }
+    } catch (err) {
+      console.error("AI Magic failed:", err);
     } finally {
       setIsAiLoading(false);
     }
@@ -1387,36 +1396,16 @@ export default function App() {
                           <div className="h-3 w-[1px] bg-neutral-100 mx-1" />
                           
                           <button 
-                            onClick={handleAiOptimizePost}
-                            disabled={isAiLoading || !postContent}
+                            onClick={() => setShowAiPrompt(!showAiPrompt)}
+                            disabled={isAiLoading}
                             className={cn(
-                              "p-1.5 rounded-lg transition-all flex items-center gap-2 text-blue-500 hover:bg-blue-50 disabled:opacity-30"
+                              "p-1.5 rounded-lg transition-all flex items-center gap-2 text-purple-600 hover:bg-purple-50",
+                              showAiPrompt && "bg-purple-50 shadow-inner"
                             )}
-                            title="AI Optimize Post"
+                            title="AI Command"
                           >
                             <Sparkles className={cn("w-3.5 h-3.5", isAiLoading && "animate-spin")} />
-                          </button>
-
-                          <button 
-                            onClick={() => handleAiGenerateInteractive('poll')}
-                            disabled={isAiLoading || !postContent}
-                            className={cn(
-                              "p-1.5 rounded-lg transition-all flex items-center gap-2 text-green-500 hover:bg-green-50 disabled:opacity-30"
-                            )}
-                            title="AI Generate Poll"
-                          >
-                            <Vote className={cn("w-3.5 h-3.5", isAiLoading && "animate-spin")} />
-                          </button>
-
-                          <button 
-                            onClick={() => handleAiGenerateInteractive('quiz')}
-                            disabled={isAiLoading || !postContent}
-                            className={cn(
-                              "p-1.5 rounded-lg transition-all flex items-center gap-2 text-yellow-500 hover:bg-yellow-50 disabled:opacity-30"
-                            )}
-                            title="AI Generate Quiz"
-                          >
-                            <Trophy className={cn("w-3.5 h-3.5", isAiLoading && "animate-spin")} />
+                            <span className="text-[10px] font-bold uppercase tracking-tight hidden sm:inline">AI Command</span>
                           </button>
                         </div>
 
@@ -1430,6 +1419,33 @@ export default function App() {
                           </button>
                         </div>
                       </div>
+
+                      {showAiPrompt && (
+                        <div className="mt-3 p-1 bg-purple-50/50 rounded-xl flex items-center gap-2 border border-purple-100 animate-in fade-in slide-in-from-top-1">
+                          <input 
+                            autoFocus
+                            type="text"
+                            placeholder="E.g. 'Shorten this', 'Professional tone', 'Arabic'..."
+                            className="flex-1 bg-transparent border-none text-[11px] px-3 py-1.5 outline-none font-medium placeholder:text-purple-300 text-purple-900"
+                            value={aiInstruction}
+                            onChange={(e) => setAiInstruction(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAiMagicPost(aiInstruction)}
+                          />
+                          <button 
+                            onClick={() => handleAiMagicPost(aiInstruction)}
+                            disabled={isAiLoading || !aiInstruction}
+                            className="bg-purple-500 text-white p-1.5 rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-30"
+                          >
+                            {isAiLoading ? <Wand2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                          </button>
+                          <button 
+                            onClick={() => { setShowAiPrompt(false); setAiInstruction(''); }}
+                            className="text-neutral-400 hover:text-neutral-600 p-1.5 transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1580,6 +1596,15 @@ export default function App() {
                             <div key={i} className="text-[10px] p-2 bg-neutral-50 rounded-lg border border-neutral-100">{opt}</div>
                           ))}
                         </div>
+                        <button 
+                          onClick={() => {
+                            setPostQuiz(aiOptimizedPost.quiz);
+                            setAiOptimizedPost({ ...aiOptimizedPost, quiz: null });
+                          }}
+                          className="mt-2 w-full py-1.5 bg-yellow-50 text-yellow-600 rounded-lg text-[9px] font-bold uppercase hover:bg-yellow-100"
+                        >
+                          Use this Quiz
+                        </button>
                       </div>
                     </div>
                   )}
@@ -1594,6 +1619,15 @@ export default function App() {
                             <div key={i} className="text-[10px] p-2 bg-neutral-50 rounded-lg border border-neutral-100">{opt}</div>
                           ))}
                         </div>
+                        <button 
+                          onClick={() => {
+                            setPostPoll(aiOptimizedPost.poll);
+                            setAiOptimizedPost({ ...aiOptimizedPost, poll: null });
+                          }}
+                          className="mt-2 w-full py-1.5 bg-green-50 text-green-600 rounded-lg text-[9px] font-bold uppercase hover:bg-green-100"
+                        >
+                          Use this Poll
+                        </button>
                       </div>
                     </div>
                   )}
@@ -2013,7 +2047,9 @@ export default function App() {
                            )}
                         </div>
                       </div>
-                      <p className="text-sm text-neutral-700 whitespace-pre-wrap mt-4 pt-4 border-t border-neutral-100">{job.description}</p>
+                      <div className="markdown-body text-sm text-neutral-700 mt-4 pt-4 border-t border-neutral-100">
+                        <Markdown>{job.description}</Markdown>
+                      </div>
                       <div className="mt-4 pt-4 border-t border-neutral-100 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
                         <span>Posted {formatDistanceToNow(new Date(job.created_at))} ago</span>
                         <span>Job ID: {job.id.toString().padStart(6, '0')}</span>

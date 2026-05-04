@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Markdown from 'react-markdown';
 import { 
   User as UserIcon, 
   CheckCircle2, 
@@ -185,7 +186,9 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
 
       {profileData.bio && (
         <section className="bg-neutral-50 p-6 rounded-[32px] border border-neutral-100 italic text-xs leading-relaxed text-neutral-600 mx-4">
-          "{profileData.bio}"
+          <div className="markdown-body">
+            <Markdown>{profileData.bio}</Markdown>
+          </div>
         </section>
       )}
 
@@ -293,7 +296,11 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
                 <span className="text-[9px] font-mono text-neutral-400 whitespace-nowrap">{item.start_date?.split('-')[0]}</span>
               </div>
               <p className="text-[10px] font-bold text-blue-600 mb-2 uppercase tracking-wide">{item.subtitle}</p>
-              {item.description && <p className="text-[10px] text-neutral-500 leading-relaxed mb-3">{item.description}</p>}
+              {item.description && (
+                <div className="markdown-body text-[10px] text-neutral-500 leading-relaxed mb-3">
+                  <Markdown>{item.description}</Markdown>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -438,7 +445,9 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
                 <h4 className="text-sm font-black text-neutral-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{item.title}</h4>
                 <ExternalLink className="w-3.5 h-3.5 text-neutral-300 group-hover:text-black transition-all" />
               </div>
-              <p className="text-[11px] text-neutral-500 leading-relaxed line-clamp-2 md:line-clamp-none mb-4">{item.description}</p>
+              <div className="markdown-body text-[11px] text-neutral-500 leading-relaxed line-clamp-2 md:line-clamp-none mb-4">
+                <Markdown>{item.description}</Markdown>
+              </div>
               {item.url && (
                 <a href={item.url} target="_blank" rel="noreferrer" className="text-[9px] font-black text-blue-500 uppercase tracking-widest hover:underline flex items-center gap-1">
                   Access Artifact <ChevronRight className="w-2.5 h-2.5" />
