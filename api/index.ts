@@ -4,7 +4,7 @@ import 'express-async-errors';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { Surreal, RecordId } from 'surrealdb';
-import { SurrealAdapter, IDBAdapter } from '../src/lib/db.js';
+import { SurrealAdapter, IDBAdapter } from '../src/lib/db';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 
@@ -1331,11 +1331,13 @@ apiRouter.use(async (req, res, next) => {
     res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });
   });
 
-  // Vite
+  // Vite / Static Serving
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
+    // Only serve static files via Express if we're in production but NOT on Vercel
+    // (Vercel handles static files and rewrites natively via vercel.json)
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
