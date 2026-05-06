@@ -10,7 +10,7 @@ export const Avatar = ({ src, name, size = 'md', className }: { src?: string | n
   };
   return (
     <div className={cn('rounded-full bg-neutral-200 flex items-center justify-center font-medium text-neutral-600 overflow-hidden shrink-0 border border-neutral-100', sizes[size], className)}>
-      {src ? <img src={src} alt={name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : name.charAt(0)}
+      {src ? <img src={src} alt={name || 'User'} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : (name || '?').charAt(0)}
     </div>
   );
 };

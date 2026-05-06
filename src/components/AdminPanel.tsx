@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, CreditCard, Database, RotateCcw, BarChart3, TrendingUp, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Database, RotateCcw, BarChart3, TrendingUp, ShieldCheck, RefreshCw, Briefcase } from 'lucide-react';
 import { fetchAPI, cn } from '../lib/utils';
 import { motion } from 'motion/react';
 
@@ -52,6 +52,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
       window.location.reload();
     } catch (e) {
       alert('Seeding failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSeedJobs = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetchAPI('/api/admin/seed-jobs', {
+        method: 'POST',
+        headers: { 'x-user-id': currentUser.id.toString() }
+      });
+      alert(`Successfully seeded ${res.count} jobs.`);
+    } catch (e: any) {
+      alert(`Seeding failed: ${e.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -206,6 +221,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
             >
               <RotateCcw className={cn("w-4 h-4", isLoading && "animate-spin")} />
               {isLoading ? 'Resetting...' : 'Factory Reset & Seed'}
+            </button>
+            <button 
+              onClick={handleSeedJobs}
+              disabled={isLoading}
+              className="w-full bg-blue-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-600 transition-all disabled:opacity-50"
+            >
+              <Briefcase className={cn("w-4 h-4", isLoading && "animate-spin")} />
+              {isLoading ? 'Seeding...' : 'Seed Sample Jobs'}
             </button>
           </div>
         </div>

@@ -6,17 +6,38 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
+  const headers: any = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('currentUser');
+    if (saved) {
+      try {
+        const user = JSON.parse(saved);
+        if (user && user.id) {
+          headers['x-user-id'] = user.id;
+        }
+      } catch (e) {}
+    }
+  }
+
   const res = await fetch(endpoint, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   });
   
   const text = await res.text();
   
   if (!res.ok) {
+    if (res.status === 401) {
+      // Automatic logout on unauthorized
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('currentUser');
+        window.dispatchEvent(new Event('auth-unauthorized'));
+      }
+    }
     let errorMessage = 'API Error';
     try {
       const errorData = JSON.parse(text);

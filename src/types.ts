@@ -1,5 +1,5 @@
 export interface User {
-  id: number;
+  id: string | number;
   email: string;
   full_name: string;
   headline: string | null;
@@ -11,14 +11,14 @@ export interface User {
   company_website?: string | null;
   role: 'admin' | 'company' | 'jobseeker';
   subscription: 'free' | 'pro' | 'enterprise';
-  place_id?: number | null;
+  place_id?: string | number | null;
   cv_text?: string | null;
   created_at: string;
 }
 
 export interface Job {
-  id: number;
-  user_id: number;
+  id: string | number;
+  user_id: string | number;
   title: string;
   company_name: string;
   location: string;
@@ -30,8 +30,8 @@ export interface Job {
 }
 
 export interface CVSection {
-  id: number;
-  user_id: number;
+  id: string | number;
+  user_id: string | number;
   type: 'experience' | 'education' | 'project' | 'certification';
   title: string;
   subtitle: string;
@@ -51,12 +51,12 @@ export interface Skill {
 }
 
 export interface Post {
-  id: number;
-  user_id: number;
+  id: string | number;
+  user_id: string | number;
   content: string;
   type: 'standard' | 'cv_update' | 'discussion';
   attachment_type: 'cv_item' | 'portfolio_item' | 'none';
-  attachment_id: number | null;
+  attachment_id: string | number | null;
   quiz_data?: string | null;
   poll_data?: string | null;
   response_stats?: string | null;
@@ -68,9 +68,9 @@ export interface Post {
 }
 
 export interface Comment {
-  id: number;
-  post_id: number;
-  user_id: number;
+  id: string | number;
+  post_id: string | number;
+  user_id: string | number;
   content: string;
   created_at: string;
   full_name: string;
@@ -78,8 +78,8 @@ export interface Comment {
 }
 
 export interface PortfolioItem {
-  id: number;
-  user_id: number;
+  id: string | number;
+  user_id: string | number;
   title: string;
   url: string;
   thumbnail_url: string | null;
@@ -88,8 +88,8 @@ export interface PortfolioItem {
 }
 
 export interface FileItem {
-  id: number;
-  user_id: number;
+  id: string | number;
+  user_id: string | number;
   name: string;
   url: string;
   type: string;
