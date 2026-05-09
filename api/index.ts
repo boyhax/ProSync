@@ -1,4 +1,4 @@
-import { app, initSurreal, setupDatabase } from '../app';
+import { app, initSurreal, setupDatabase } from '../app.ts';
 
 // Vercel serverless function entry point
 // We need to ensure DB is initialized
