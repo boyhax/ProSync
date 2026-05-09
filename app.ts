@@ -274,7 +274,13 @@ app.use((req, res, next) => {
 
 const apiRouter = express.Router();
 
-apiRouter.get('/health', (req, res) => res.json({ status: 'ok' }));
+apiRouter.get('/health', async (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    database: db ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
+  });
+});
 
 apiRouter.use(async (req, res, next) => {
   console.log(`[apiRouter] ${req.method} ${req.url}`);
