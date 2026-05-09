@@ -250,8 +250,8 @@ const PostCard = ({
                   <Trash2 className="w-6 h-6 text-red-500" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black tracking-tight">{t("App.delete_post_title")}</h3>
-                  <p className="text-sm text-neutral-500">{t("App.delete_post_confirm")}</p>
+                  <h3 className="text-lg font-black tracking-tight">Delete Post?</h3>
+                  <p className="text-sm text-neutral-500">This action cannot be undone. The post and its comments will be permanently removed.</p>
                 </div>
                 <div className="flex gap-3">
                   <Button
@@ -260,14 +260,14 @@ const PostCard = ({
                     onClick={() => setIsConfirmingDelete(false)}
                     disabled={isDeleting}
                   >
-                    {t("cancel")}
+                    Cancel
                   </Button>
                   <Button
                     className="flex-1 rounded-xl bg-red-500 hover:bg-red-600 text-white"
                     onClick={handleDelete}
                     disabled={isDeleting}
                   >
-                    {isDeleting ? t("Auth.verifying") : t("App.delete")}
+                    {isDeleting ? "Deleting..." : "Delete"}
                   </Button>
                 </div>
               </motion.div>
@@ -290,7 +290,7 @@ const PostCard = ({
               onClick={() => onUnfold(isUnfolded ? null : post.id)}
               className="text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-black mt-2 transition-colors flex items-center gap-1"
             >
-              {isUnfolded ? t("App.view_less") : t("App.read_more")}
+              {isUnfolded ? "View less" : "Read more"}
               <ArrowRight
                 className={cn(
                   "w-3 h-3 transition-transform",
@@ -306,16 +306,16 @@ const PostCard = ({
             <div className="flex items-center gap-2 mb-3">
               <Vote className="w-3.5 h-3.5 text-blue-500" />
               <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">
-                {t("App.career_poll")}
+                Career Poll
               </span>
             </div>
             <p className="text-xs font-bold mb-3">
               {(() => {
                 try {
                   const data = typeof post.poll_data === 'string' ? JSON.parse(post.poll_data) : post.poll_data;
-                  return data?.question || t("App.career_poll");
+                  return data?.question || "Poll";
                 } catch (e) {
-                  return t("App.career_poll");
+                  return "Poll";
                 }
               })()}
             </p>
@@ -376,16 +376,16 @@ const PostCard = ({
             <div className="flex items-center gap-2 mb-3">
               <Trophy className="w-3.5 h-3.5 text-yellow-500" />
               <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">
-                {t("App.skill_quiz")}
+                Skill Quiz
               </span>
             </div>
             <p className="text-xs font-bold mb-3">
               {(() => {
                 try {
                   const data = typeof post.quiz_data === 'string' ? JSON.parse(post.quiz_data) : post.quiz_data;
-                  return data?.question || t("App.skill_quiz");
+                  return data?.question || "Quiz";
                 } catch (e) {
-                  return t("App.skill_quiz");
+                  return "Quiz";
                 }
               })()}
             </p>
@@ -442,10 +442,10 @@ const PostCard = ({
             </div>
             <div className="flex-1">
               <p className="text-xs font-semibold text-neutral-800">
-                {t("App.professional_milestone")}
+                Attached Professional Milestone
               </p>
               <p className="text-[10px] text-neutral-500">
-                {t("App.verified_experience")}
+                This user and our nodes have verified this experience entry.
               </p>
             </div>
             <CheckCircle2 className="w-4 h-4 text-green-500" />
@@ -478,11 +478,11 @@ const PostCard = ({
             className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-black transition-colors"
           >
             <MessageSquare className="w-4 h-4" />
-            <span>{post.comment_count} {t("App.comments")}</span>
+            <span>{post.comment_count} Comments</span>
           </button>
           <button className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-black transition-colors">
             <Plus className="w-4 h-4" />
-            <span>{t("App.support")}</span>
+            <span>Support</span>
           </button>
         </div>
 
@@ -504,7 +504,7 @@ const PostCard = ({
                 type="text"
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
-                placeholder={t("App.write_comment")}
+                placeholder="Write a comment..."
                 className="flex-1 text-xs bg-neutral-100 border-none rounded-lg px-3 py-2"
                 onKeyDown={(e) => e.key === "Enter" && submitComment()}
               />
@@ -1825,7 +1825,7 @@ export default function App() {
                       <section className="space-y-4">
                         <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 flex items-center gap-2">
                           <Users className="w-3 h-3 text-purple-500" />
-                          {t("App.suggested_connections")}
+                          Suggested Connections
                         </h3>
                         <div className="space-y-3">
                           {recommendations?.length > 0 ? (
@@ -1859,7 +1859,7 @@ export default function App() {
                           ) : (
                             <div className="p-4 bg-neutral-50 rounded-xl border border-dashed border-neutral-200">
                               <p className="text-[10px] text-neutral-400 text-center font-bold uppercase tracking-widest leading-relaxed">
-                                {t("App.no_discovery_nodes")}<br/>{t("App.sync_more_to_explore")}
+                                No discovery nodes found.<br/>Sync more to explore.
                               </p>
                             </div>
                           )}
@@ -1942,7 +1942,7 @@ export default function App() {
                         ) : (
                           <div className="flex items-center gap-3">
                             <div className="hidden sm:block text-[10px] font-black uppercase tracking-widest text-neutral-400">
-                              {t("Platform.join_network")}
+                              {t("Platform.join_network") || "Join the Network"}
                             </div>
                             <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center border border-black shadow-lg shadow-black/10">
                               <Plus className="w-4 h-4 text-white" />
@@ -1995,7 +1995,7 @@ export default function App() {
                                 {t("App.jobs") || "Jobs"}
                               </h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {searchResults.jobs.map((j: any) => (
+                                {searchResults.jobs?.map((j: any) => (
                                   <Card
                                     key={j.id}
                                     className="p-4 bg-white/50 backdrop-blur-sm border-dashed border-2"
@@ -2015,7 +2015,7 @@ export default function App() {
                                         variant="ghost"
                                         className="h-6 text-[8px] p-0"
                                       >
-                                        {t("App.jobs")}
+                                        View Jobs
                                       </Button>
                                     </div>
                                   </Card>
@@ -2033,7 +2033,7 @@ export default function App() {
                               </h3>
                               <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                                 {searchResults.users
-                                  .filter((u: any) => u.is_company_rep)
+                                  ?.filter((u: any) => u.is_company_rep)
                                   .map((u: any) => (
                                     <button
                                       key={u.id}
@@ -2058,7 +2058,7 @@ export default function App() {
                                         {u.full_name}
                                       </p>
                                       <p className="text-[8px] text-neutral-400 truncate w-full uppercase">
-                                        {t("App.verified_org")}
+                                        Verified Org
                                       </p>
                                     </button>
                                   ))}
@@ -2075,7 +2075,7 @@ export default function App() {
                               </h3>
                               <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                                 {searchResults.users
-                                  .filter((u: any) => !u.is_company_rep)
+                                  ?.filter((u: any) => !u.is_company_rep)
                                   .map((u: any) => (
                                     <button
                                       key={u.id}
@@ -2116,7 +2116,7 @@ export default function App() {
                             />
                             <div className="flex-1 flex flex-col relative min-h-[44px]">
                               <textarea
-                                placeholder={t("App.post_placeholder")}
+                                placeholder="What's moving in your career? Use #tags or / to add quiz/poll..."
                                 value={postContent}
                                 onFocus={() => setIsPostFocused(true)}
                                 onBlur={() => {
@@ -2149,7 +2149,7 @@ export default function App() {
                               {showSlashMenu && (
                                 <div className="absolute left-0 bottom-full mb-2 bg-white border border-neutral-200 rounded-xl shadow-xl p-1 z-50 min-w-[140px] animate-in fade-in slide-in-from-bottom-2">
                                   <p className="px-3 py-1.5 text-[7px] font-bold text-neutral-400 uppercase tracking-widest border-b border-neutral-50">
-                                    {t("App.career_interactive")}
+                                    Career Interactive
                                   </p>
                                   <button
                                     onClick={() => {
@@ -2165,7 +2165,7 @@ export default function App() {
                                     className="w-full flex items-center gap-2 px-3 py-1.5 text-[9px] font-bold text-neutral-600 hover:bg-neutral-50 rounded-lg transition-colors text-left"
                                   >
                                     <Vote className="w-3 h-3 text-blue-500" />
-                                    {t("App.create_poll")}
+                                    Create Poll
                                   </button>
                                   <button
                                     onClick={() => {
@@ -2182,7 +2182,7 @@ export default function App() {
                                     className="w-full flex items-center gap-2 px-3 py-1.5 text-[9px] font-bold text-neutral-600 hover:bg-neutral-50 rounded-lg transition-colors text-left"
                                   >
                                     <Trophy className="w-3 h-3 text-yellow-500" />
-                                    {t("App.create_quiz")}
+                                    Create Quiz
                                   </button>
                                 </div>
                               )}
@@ -2216,7 +2216,7 @@ export default function App() {
                                       )}
                                     />
                                     <span className="text-[9px] font-bold hidden md:inline uppercase tracking-widest">
-                                      {t("App.attach")}
+                                      Attach
                                     </span>
                                   </button>
 
@@ -2232,7 +2232,7 @@ export default function App() {
                                       >
                                         <FileText className="w-4 h-4 text-blue-500" />
                                         <span className="text-[8px] font-bold text-neutral-400 uppercase hidden sm:inline">
-                                          {t("App.cv")}
+                                          CV
                                         </span>
                                       </button>
                                       <button
@@ -2245,7 +2245,7 @@ export default function App() {
                                       >
                                         <LinkIcon className="w-4 h-4 text-purple-500" />
                                         <span className="text-[8px] font-bold text-neutral-400 uppercase hidden sm:inline">
-                                          {t("App.link")}
+                                          Link
                                         </span>
                                       </button>
                                       <button
@@ -2259,7 +2259,7 @@ export default function App() {
                                       >
                                         <FolderOpen className="w-4 h-4 text-orange-500" />
                                         <span className="text-[8px] font-bold text-neutral-400 uppercase hidden sm:inline">
-                                          {t("App.files")}
+                                          Files
                                         </span>
                                       </button>
                                       <button
@@ -2275,7 +2275,7 @@ export default function App() {
                                       >
                                         <Vote className="w-4 h-4 text-green-500" />
                                         <span className="text-[8px] font-bold text-neutral-400 uppercase hidden sm:inline">
-                                          {t("App.poll")}
+                                          Poll
                                         </span>
                                       </button>
                                     </div>
@@ -2397,7 +2397,7 @@ export default function App() {
                                   }
                                 />
                                 <div className="space-y-2">
-                                  {postPoll.options.map((opt, i) => (
+                                  {postPoll.options?.map((opt, i) => (
                                     <div key={i} className="flex gap-2">
                                       <input
                                         type="text"
@@ -2440,7 +2440,7 @@ export default function App() {
                                       }
                                       className="text-[10px] font-bold text-blue-500 hover:underline flex items-center gap-1"
                                     >
-                                      <Plus className="w-3 h-3" /> {t("App.add_option")}
+                                      <Plus className="w-3 h-3" /> Add Option
                                     </button>
                                   )}
                                 </div>
@@ -2475,7 +2475,7 @@ export default function App() {
                                   }
                                 />
                                 <div className="space-y-2">
-                                  {postQuiz.options.map((opt, i) => (
+                                  {postQuiz.options?.map((opt, i) => (
                                     <div
                                       key={i}
                                       className="flex gap-2 items-center"
@@ -2536,7 +2536,7 @@ export default function App() {
                                       }
                                       className="text-[10px] font-bold text-yellow-500 hover:underline flex items-center gap-1"
                                     >
-                                      <Plus className="w-3 h-3" /> {t("App.add_option")}
+                                      <Plus className="w-3 h-3" /> Add Option
                                     </button>
                                   )}
                                 </div>
@@ -2551,7 +2551,7 @@ export default function App() {
                                     onClick={() => setAttachmentType("none")}
                                   />
                                   <span className="text-[10px] font-bold uppercase tracking-tight text-neutral-500">
-                                    {t("App.attached")}{attachmentType.replace("_", " ")}
+                                    Attached: {attachmentType.replace("_", " ")}
                                   </span>
                                 </div>
                                 {attachmentType === "cv_item" &&
@@ -2563,7 +2563,7 @@ export default function App() {
                                       }
                                     >
                                       <option value="">
-                                        {t("App.select_cv_entry")}
+                                        Select CV Entry...
                                       </option>
                                       {profileData?.cv?.map((item: any) => (
                                         <option key={item.id} value={item.id}>
@@ -2583,21 +2583,21 @@ export default function App() {
                           <div className="flex items-center gap-2 mb-3">
                             <Sparkles className="w-3 h-3 text-blue-500" />
                             <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">
-                              {t("App.ai_content_assist")}
+                              AI Content Assist
                             </span>
                           </div>
 
                           {aiOptimizedPost.quiz && (
                             <div className="mb-4">
                               <p className="text-[10px] font-bold text-neutral-500 uppercase mb-2">
-                                {t("App.suggested_quiz")}
+                                Suggested Quiz
                               </p>
                               <div className="bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
                                 <p className="text-xs font-bold mb-2">
                                   {aiOptimizedPost.quiz.question}
                                 </p>
                                 <div className="space-y-1">
-                                  {aiOptimizedPost.quiz.options.map(
+                                  {aiOptimizedPost.quiz.options?.map(
                                     (opt: string, i: number) => (
                                       <div
                                         key={i}
@@ -2618,7 +2618,7 @@ export default function App() {
                                   }}
                                   className="mt-2 w-full py-1.5 bg-yellow-50 text-yellow-600 rounded-lg text-[9px] font-bold uppercase hover:bg-yellow-100"
                                 >
-                                  {t("App.use_quiz")}
+                                  Use this Quiz
                                 </button>
                               </div>
                             </div>
@@ -2627,14 +2627,14 @@ export default function App() {
                           {aiOptimizedPost.poll && (
                             <div>
                               <p className="text-[10px] font-bold text-neutral-500 uppercase mb-2">
-                                {t("App.suggested_poll")}
+                                Suggested Poll
                               </p>
                               <div className="bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
                                 <p className="text-xs font-bold mb-2">
                                   {aiOptimizedPost.poll.question}
                                 </p>
                                 <div className="space-y-1">
-                                  {aiOptimizedPost.poll.options.map(
+                                  {aiOptimizedPost.poll.options?.map(
                                     (opt: string, i: number) => (
                                       <div
                                         key={i}
@@ -2655,7 +2655,7 @@ export default function App() {
                                   }}
                                   className="mt-2 w-full py-1.5 bg-green-50 text-green-600 rounded-lg text-[9px] font-bold uppercase hover:bg-green-100"
                                 >
-                                  {t("App.use_poll")}
+                                  Use this Poll
                                 </button>
                               </div>
                             </div>
@@ -2665,7 +2665,7 @@ export default function App() {
                             onClick={() => setAiOptimizedPost(null)}
                             className="mt-4 text-[10px] text-blue-500 font-bold hover:underline"
                           >
-                            {t("App.clear_ai_suggestions")}
+                            Clear AI suggestions
                           </button>
                         </div>
                       )}

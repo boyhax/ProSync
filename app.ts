@@ -4,7 +4,7 @@ import 'express-async-errors';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { Surreal, RecordId } from 'surrealdb';
-import { SurrealAdapter, IDBAdapter } from './src/lib/db';
+import { SurrealAdapter, IDBAdapter } from './src/lib/db.ts';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 
@@ -282,7 +282,6 @@ apiRouter.use(async (req, res, next) => {
      try {
        await initSurreal();
      } catch (e) {
-       console.error('Database initialization failed in apiRouter:', e);
        return res.status(503).json({ error: 'Database connection failed' });
      }
   }
@@ -557,7 +556,7 @@ apiRouter.post('/auth/reset-password', async (req, res) => {
   res.json({ success: true });
 });
 
-apiRouter.get('/notifications/:userId([^/]+)', async (req, res) => {
+apiRouter.get('/notifications/:userId', async (req, res) => {
   const { userId } = req.params;
   const idRecord = userId.includes(':') ? userId : `users:${userId}`;
   const [notifications] = await db.query('SELECT * FROM notifications WHERE user_id = type::record($userId) ORDER BY created_at DESC LIMIT 20', { userId: idRecord }) as any;
@@ -569,7 +568,7 @@ apiRouter.post('/notifications/read', async (req, res) => {
   res.json({ success: true });
 });
 
-apiRouter.get('/connections/status/:userId([^/]+)/:targetId([^/]+)', async (req, res) => {
+apiRouter.get('/connections/status/:userId/:targetId', async (req, res) => {
   const { userId, targetId } = req.params;
   const uId = toRecordId(userId, 'users');
   const tId = toRecordId(targetId, 'users');
@@ -591,7 +590,7 @@ apiRouter.post('/connections', async (req, res) => {
   res.json({ success: true });
 });
 
-apiRouter.delete('/connections/:userId([^/]+)/:targetId([^/]+)', async (req, res) => {
+apiRouter.delete('/connections/:userId/:targetId', async (req, res) => {
   const { userId, targetId } = req.params;
   const uId = toRecordId(userId, 'users');
   const tId = toRecordId(targetId, 'users');
@@ -639,7 +638,7 @@ apiRouter.get('/topics', async (req, res) => {
   }
 });
 
-apiRouter.get('/topics/followed/:userId([^/]+)', async (req, res) => {
+apiRouter.get('/topics/followed/:userId', async (req, res) => {
   const { userId } = req.params;
   const idRecord = toRecordId(userId, 'users');
   const [topics] = await db.query('SELECT out.name as name FROM follows_topic WHERE in = $userId', { userId: idRecord }) as any;
@@ -778,7 +777,7 @@ apiRouter.post('/jobs/apply', async (req, res) => {
   res.json({ success: true });
 });
 
-apiRouter.get('/job-alerts/:userId([^/]+)', async (req, res) => {
+apiRouter.get('/job-alerts/:userId', async (req, res) => {
   const [alerts] = await db.query('SELECT * FROM job_alerts WHERE user_id = type::record($userId)', { userId: req.params.userId.includes(':') ? req.params.userId : `users:${req.params.userId}` }) as any;
   res.json(alerts || []);
 });
@@ -794,7 +793,7 @@ apiRouter.delete('/job-alerts/:alertId', async (req, res) => {
   res.json({ success: true });
 });
 
-apiRouter.get('/messages/conversations/:userId([^/]+)', async (req, res) => {
+apiRouter.get('/messages/conversations/:userId', async (req, res) => {
   const { userId } = req.params;
   const uId = userId.includes(':') ? userId : `users:${userId}`;
   const [messages] = await db.query('SELECT sender_id, receiver_id FROM messages WHERE sender_id = type::record($uId) OR receiver_id = type::record($uId)', { uId }) as any;
@@ -811,7 +810,7 @@ apiRouter.get('/messages/conversations/:userId([^/]+)', async (req, res) => {
   res.json(conversations.sort((a,b) => new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime()));
 });
 
-apiRouter.get('/messages/:userId([^/]+)/:targetId([^/]+)', async (req, res) => {
+apiRouter.get('/messages/:userId/:targetId', async (req, res) => {
   const uId = req.params.userId.includes(':') ? req.params.userId : `users:${req.params.userId}`;
   const tId = req.params.targetId.includes(':') ? req.params.targetId : `users:${req.params.targetId}`;
   await db.query('UPDATE messages SET is_read = 1 WHERE sender_id = type::record($tId) AND receiver_id = type::record($uId)', { uId, tId });
@@ -839,7 +838,7 @@ apiRouter.get('/content', async (req, res) => {
   }
 });
 
-apiRouter.get('/profile/:userId([^/]+)', async (req, res) => {
+apiRouter.get('/profile/:userId', async (req, res) => {
   const idRecord = req.params.userId.includes(':') ? req.params.userId : `users:${req.params.userId}`;
   try {
     const [users] = await db.query('SELECT * FROM type::record($id)', { id: idRecord }) as any;
@@ -935,7 +934,7 @@ apiRouter.get('/candidates', async (req, res) => {
   res.json((users || []).map((u: any) => ({ ...u, id: stringId(u.id) })));
 });
 
-apiRouter.get('/recommendations/:userId([^/]+)?', async (req, res) => {
+apiRouter.get('/recommendations/:userId?', async (req, res) => {
   const { userId } = req.params;
   const idRecord = toRecordId(userId, 'users');
   
@@ -978,7 +977,7 @@ apiRouter.get('/recommendations/:userId([^/]+)?', async (req, res) => {
   }
 });
 
-apiRouter.get('/files/:userId([^/]+)', async (req, res) => {
+apiRouter.get('/files/:userId', async (req, res) => {
   const [files] = await db.query('SELECT * FROM files WHERE user_id = type::record($userId) ORDER BY created_at DESC', { userId: req.params.userId.includes(':') ? req.params.userId : `users:${req.params.userId}` }) as any;
   res.json(files || []);
 });
@@ -1038,19 +1037,12 @@ apiRouter.use((err: any, req: express.Request, res: express.Response, next: expr
   res.status(err.status || 500).json({ error: err.message || 'Server Error' });
 });
 
-// Catch-all for /api that didn't match any route in apiRouter
 apiRouter.use((req, res) => {
-  console.warn(`[404] API route not found in apiRouter: ${req.method} ${req.originalUrl}`);
-  res.status(404).json({ error: `Not Found: ${req.method} ${req.originalUrl}` });
+  console.warn(`[404] API route not found: ${req.method} ${req.url}`);
+  res.status(404).json({ error: 'Not Found' });
 });
 
 app.use('/api', apiRouter);
-
-// Global /api catch-all (in case apiRouter didn't mount or segments mismatched)
-app.all('/api/*', (req, res) => {
-  console.warn(`[404] Global API route not found: ${req.method} ${req.url}`);
-  res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
-});
 
 if (process.env.NODE_ENV !== 'production') {
   const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });

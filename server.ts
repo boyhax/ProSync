@@ -1,4 +1,4 @@
-import { app, initSurreal, setupDatabase } from './app';
+import { app, initSurreal, setupDatabase } from './app.ts';
 
 const PORT = 3000;
 

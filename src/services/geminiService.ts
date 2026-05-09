@@ -29,7 +29,7 @@ export const geminiService = {
       });
 
       const rankedIds = JSON.parse(response.text || "[]");
-      return rankedIds.map((id: number) => jobs.find(j => j.id === id)).filter(Boolean);
+      return rankedIds?.map((id: number) => jobs.find(j => j.id === id)).filter(Boolean);
     } catch (error) {
       console.error("AI ranking failed:", error);
       return jobs;

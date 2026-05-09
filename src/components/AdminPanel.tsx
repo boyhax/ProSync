@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Users, CreditCard, Database, RotateCcw, BarChart3, TrendingUp, ShieldCheck, RefreshCw, Briefcase } from 'lucide-react';
 import { fetchAPI, cn } from '../lib/utils';
 import { motion } from 'motion/react';
-import { useTranslation } from 'react-i18next';
 
 interface AdminPanelProps {
   currentUser: any;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
-  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'data' | 'system'>('analytics');
   const [analytics, setAnalytics] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
@@ -56,7 +54,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
         },
         body: JSON.stringify({ count: seedCount })
       });
-      alert(t('Admin.seed_success'));
+      alert('Seed generation success');
       fetchAdminContent();
       fetchAnalytics();
     } catch (e: any) {
@@ -74,7 +72,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
         method: 'POST',
         headers: { 'x-user-id': currentUser.id.toString() }
       });
-      alert(t('Admin.seed_cleared'));
+      alert('Seed content cleared');
       fetchAdminContent();
       fetchAnalytics();
     } catch (e: any) {
@@ -114,10 +112,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
         method: 'POST',
         headers: { 'x-user-id': currentUser.id.toString() }
       });
-      alert(t('Admin.seeding_complete'));
+      alert('Seeding complete. Please refresh to see changes.');
       window.location.reload();
     } catch (e) {
-      alert(t('Admin.seeding_failed'));
+      alert('Seeding failed');
     } finally {
       setIsLoading(false);
     }
@@ -151,7 +149,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
       fetchUsers();
       fetchAnalytics();
     } catch (e) {
-      alert(t('Admin.update_failed'));
+      alert('Update failed');
     }
   };
 
@@ -210,7 +208,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
           </div>
           <div className="bg-white border border-neutral-200 p-6 rounded-2xl shadow-sm space-y-2 text-center col-span-1 md:col-span-2 flex flex-col justify-center">
              <div className="flex justify-around">
-               {analytics.subs.map((s: any) => (
+               {analytics.subs?.map((s: any) => (
                  <div key={s.subscription}>
                    <p className="text-xl font-black capitalize">{s.subscription}</p>
                    <p className="text-xs font-bold text-neutral-400 uppercase">{s.count} Users</p>
@@ -218,7 +216,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                ))}
              </div>
              <div className="mt-4 pt-4 border-t border-neutral-100 flex justify-center gap-8">
-               {analytics.roles.map((r: any) => (
+               {analytics.roles?.map((r: any) => (
                  <div key={r.role} className="flex items-center gap-2">
                    <div className={cn("w-2 h-2 rounded-full", r.role === 'admin' ? "bg-red-500" : r.role === 'company' ? "bg-blue-500" : "bg-neutral-400")} />
                    <span className="text-[10px] font-bold uppercase text-neutral-500">{r.role}: {r.count}</span>
