@@ -10,8 +10,8 @@
     "preview": "vite preview",
 =======
     "dev": "vite --port 3000 --host",
-    "build:web": "vite build",
-    "build": "vite build && nitro build",
+    "build": "vite build",
+    "deploy": "bun run build && wrangler deploy",
     "preview": "nitro preview",
     "clean": "rm -rf dist",
 >>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)

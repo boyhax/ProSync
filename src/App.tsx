@@ -1379,6 +1379,7 @@ export default function App() {
     }
   };
 
+<<<<<<< HEAD
   const handleAiMagicJob = async (instruction?: string) => {
     setIsAiLoading(true);
     try {
@@ -1397,6 +1398,14 @@ export default function App() {
       console.error("AI Job Magic failed:", err);
     } finally {
       setIsAiLoading(false);
+=======
+  const handleAiBio = async (instruction: string) => {
+    if (!currentUser) return;
+    const newBio = await geminiService.magicBio(profileData?.bio || "", instruction);
+    if (newBio) {
+      await api.profile.update(currentUser.id, { bio: newBio });
+      fetchProfile(currentUser.id);
+>>>>>>> 3bb641c (feat: add AI bio editing feature and update deployment configuration)
     }
   };
 
@@ -4383,6 +4392,7 @@ export default function App() {
                                   onAddSkill={addSkill}
                                   onAddPortfolioItem={addPortfolioItem}
                                   onVerifySkill={verifySkill}
+                                  onAiEditBio={handleAiBio}
                                 />
                               )}
                             </div>
