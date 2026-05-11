@@ -39,6 +39,11 @@ const normalizeUserId = (value: unknown): string | null => {
   return raw.includes(':') ? raw : `users:${raw}`;
 };
 
+const isPermissionError = (error: unknown): boolean => {
+  const msg = (error as Error)?.message?.toLowerCase?.() || '';
+  return msg.includes('permission') || msg.includes('iam') || msg.includes('not enough permissions');
+};
+
 // Extracts userId from Authorization: Bearer <userId> header
 const getAuthUserId = (req: any): string | null => {
   const authHeader = req.headers['authorization'] as string | undefined;
@@ -461,6 +466,11 @@ apiRouter.use(async (req, res, next) => {
       const count = users?.[0]?.count || 0;
       res.json({ initialized: count > 0 });
     } catch (err) {
+      if (isPermissionError(err)) {
+        // With restricted IAM roles we can't inspect admin users; assume initialized
+        // to avoid forcing setup UI in already provisioned environments.
+        return res.json({ initialized: true });
+      }
       res.json({ initialized: false });
     }
   });
@@ -1095,8 +1105,13 @@ apiRouter.use(async (req, res, next) => {
         const postUserId = stringId(p.user_id);
         const postRecordId = postId.includes(':') ? postId : `posts:${postId}`;
 
-        const [users] = await db.query('SELECT * FROM type::record($id)', { id: postUserId }) as any;
-        const postUser = users?.[0];
+        let postUser: any = undefined;
+        try {
+          const [users] = await db.query('SELECT * FROM type::record($id)', { id: postUserId }) as any;
+          postUser = users?.[0];
+        } catch (error) {
+          if (!isPermissionError(error)) throw error;
+        }
 
         const [commentCounts] = await db.query(
           'SELECT count() as count FROM comments WHERE post_id = type::record($postId) GROUP ALL',
@@ -1123,6 +1138,9 @@ apiRouter.use(async (req, res, next) => {
       res.json(results);
     } catch (err) {
       console.error('Content fetch error:', err);
+      if (isPermissionError(err)) {
+        return res.json([]);
+      }
       res.status(500).json({ error: (err as Error).message });
     }
   });
@@ -1366,6 +1384,9 @@ apiRouter.use(async (req, res, next) => {
       const results = users.map((u: any) => ({ ...u, id: stringId(u.id) }));
       res.json(results);
     } catch (err) {
+      if (isPermissionError(err)) {
+        return res.json([]);
+      }
       res.status(500).json({ error: (err as Error).message });
     }
   });
@@ -1384,6 +1405,9 @@ apiRouter.use(async (req, res, next) => {
       const [recs] = await db.query(query, params) as any;
       res.json((recs || []).map((r: any) => ({ ...r, id: stringId(r.id) })));
     } catch (err) {
+      if (isPermissionError(err)) {
+        return res.json([]);
+      }
       res.status(500).json({ error: (err as Error).message });
     }
   });
@@ -1516,7 +1540,7 @@ apiRouter.use(async (req, res, next) => {
         },
       });
     } catch (err) {
-      res.status(500).json({ error: (err as Error).message });
+      return res.status(500).json({ error: (err as Error).message });
     }
   });
 
