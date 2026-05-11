@@ -237,16 +237,27 @@ export const ai = {
     fetchAPI('/api/ai/magic-bio', { method: 'POST', body: JSON.stringify({ bio, instruction }) }),
 };
 
-// ─── Admin ────────────────────────────────────────────────────────────────────
-export const admin = {
-  analytics: () => fetchAPI('/api/admin/analytics'),
+// ─── Generic Admin-Capable Resources ─────────────────────────────────────────
+export const system = {
+  analytics: () => fetchAPI('/api/analytics'),
 
-  users: () => fetchAPI('/api/admin/users'),
+  seed: () => fetchAPI('/api/system/seed', { method: 'POST' }),
 
-  seed: () => fetchAPI('/api/admin/seed', { method: 'POST' }),
+  seedJobs: () => fetchAPI('/api/system/seed-jobs', { method: 'POST' }),
+};
 
-  seedJobs: () => fetchAPI('/api/admin/seed-jobs', { method: 'POST' }),
+export const users = {
+  list: () => fetchAPI('/api/users'),
 
   updateSubscription: (userId: string | number, subscription: string) =>
-    fetchAPI('/api/admin/update-subscription', { method: 'POST', body: JSON.stringify({ userId, subscription }) }),
+    fetchAPI('/api/users/subscription', { method: 'POST', body: JSON.stringify({ userId, subscription }) }),
+};
+
+// Compatibility alias for old callers. Prefer `system` + `users` in new code.
+export const admin = {
+  analytics: system.analytics,
+  users: users.list,
+  seed: system.seed,
+  seedJobs: system.seedJobs,
+  updateSubscription: users.updateSubscription,
 };

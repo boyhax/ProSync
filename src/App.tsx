@@ -41,12 +41,14 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { AdminPanel } from "./components/AdminPanel";
-import { AuthPanel } from "./components/features/AuthPanel";
-import { EditPostModal } from "./components/features/EditPostModal";
-import { FileGallery } from "./components/features/FileGallery";
-import { JobsFeature } from "./components/features/JobsFeature";
-import { MarkdownEditor } from "./components/features/MarkdownEditor";
-import { PostCard } from "./components/features/PostCard";
+import {
+  AuthPanel,
+  EditPostModal,
+  FileGallery,
+  JobsFeature,
+  MarkdownEditor,
+  PostCard,
+} from "./components/features";
 import { ProfilePanel } from "./components/ProfilePanel";
 import { SetupPage } from "./components/SetupPage";
 import { Avatar } from "./components/ui/Avatar";

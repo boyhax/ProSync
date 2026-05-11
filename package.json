@@ -20,6 +20,7 @@
   },
   "dependencies": {
 <<<<<<< HEAD
+<<<<<<< HEAD
     "@analogjs/vite-plugin-nitro": "^2.5.0",
     "@google/genai": "^1.51.0",
     "@google/generative-ai": "^0.24.1",
@@ -30,6 +31,9 @@
     "@vitejs/plugin-react": "^5.0.4",
     "babel-plugin-react-compiler": "^19.0.0-beta-af1b7da-20250417",
 =======
+=======
+    "@casl/ability": "^6.7.3",
+>>>>>>> 51adbfa (feat: add JobsFeature component for job and applicant management)
     "@google/genai": "^1.52.0",
     "@google/generative-ai": "^0.24.1",
     "@tailwindcss/vite": "^4.3.0",

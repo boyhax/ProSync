@@ -1,15 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { LayoutDashboard, Users, CreditCard, Database, RotateCcw, BarChart3, TrendingUp, ShieldCheck, RefreshCw, Briefcase } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as api from '../services/api';
 import { motion } from 'motion/react';
+import { defineAbilityFor } from '../lib/ability';
 
 interface AdminPanelProps {
   currentUser: any;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
+<<<<<<< HEAD
   const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'data' | 'system'>('analytics');
+=======
+  const ability = useMemo(() => defineAbilityFor(currentUser), [currentUser]);
+  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'system'>('analytics');
+>>>>>>> 51adbfa (feat: add JobsFeature component for job and applicant management)
   const [analytics, setAnalytics] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
@@ -19,8 +25,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    if (!ability.can('view', 'AdminPanel')) return;
     fetchAnalytics();
     fetchUsers();
+<<<<<<< HEAD
     if (activeTab === 'data') {
       fetchAdminContent();
     }
@@ -82,10 +90,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
       setIsLoading(false);
     }
   };
+=======
+  }, [ability]);
+>>>>>>> 51adbfa (feat: add JobsFeature component for job and applicant management)
 
   const fetchAnalytics = async () => {
+    if (!ability.can('read', 'Analytics')) return;
     try {
-      const data = await api.admin.analytics();
+      const data = await api.system.analytics();
       setAnalytics(data);
     } catch (e) {
       console.error(e);
@@ -93,8 +105,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   };
 
   const fetchUsers = async () => {
+    if (!ability.can('read', 'User')) return;
     try {
-      const data = await api.admin.users();
+      const data = await api.users.list();
       setUsers(data);
     } catch (e) {
       console.error(e);
@@ -102,10 +115,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   };
 
   const handleReseed = async () => {
+    if (!ability.can('seed', 'System')) return;
     if (!confirm('Are you sure you want to RE-SEED the entire database? All current data (except this admin) might be lost if not in seed list.')) return;
     setIsLoading(true);
     try {
-      await api.admin.seed();
+      await api.system.seed();
       alert('Seeding complete. Please refresh to see changes.');
       window.location.reload();
     } catch (e) {
@@ -116,9 +130,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   };
 
   const handleSeedJobs = async () => {
+    if (!ability.can('seed', 'System')) return;
     setIsLoading(true);
     try {
-      const res = await api.admin.seedJobs();
+      const res = await api.system.seedJobs();
       alert(`Successfully seeded ${res.count} jobs.`);
     } catch (e: any) {
       alert(`Seeding failed: ${e.message}`);
@@ -128,14 +143,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   };
 
   const updateSubscription = async (userId: number, sub: string) => {
+    if (!ability.can('update', 'User')) return;
     try {
-      await api.admin.updateSubscription(userId, sub);
+      await api.users.updateSubscription(userId, sub);
       fetchUsers();
       fetchAnalytics();
     } catch (e) {
       alert('Update failed');
     }
   };
+
+  if (!ability.can('view', 'AdminPanel')) {
+    return (
+      <div className="max-w-3xl mx-auto p-6">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6">
+          <h2 className="text-lg font-black tracking-tight">Access Denied</h2>
+          <p className="text-sm text-neutral-500 mt-1">You do not have permission to view the admin panel.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-6">
@@ -385,7 +412,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
             </div>
             <button 
               onClick={handleReseed}
-              disabled={isLoading}
+              disabled={isLoading || !ability.can('seed', 'System')}
               className="w-full bg-red-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-red-600 transition-all disabled:opacity-50"
             >
               <RotateCcw className={cn("w-4 h-4", isLoading && "animate-spin")} />
@@ -393,7 +420,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
             </button>
             <button 
               onClick={handleSeedJobs}
-              disabled={isLoading}
+              disabled={isLoading || !ability.can('seed', 'System')}
               className="w-full bg-blue-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-600 transition-all disabled:opacity-50"
             >
               <Briefcase className={cn("w-4 h-4", isLoading && "animate-spin")} />
