@@ -1,77 +1,62 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { formatDistanceToNow, isValid } from "date-fns";
 import {
-  Routes,
-  Route,
-  useNavigate,
-  useLocation,
-  Navigate,
-} from "react-router-dom";
-import {
-  Briefcase,
-  GraduationCap,
-  Code,
+  ArrowRight,
   Award,
-  Search,
-  User as UserIcon,
-  Home,
-  MessageSquare,
-  Plus,
-  X,
-  Link as LinkIcon,
-  ExternalLink,
-  ChevronRight,
-  Send,
-  MoreHorizontal,
-  Filter,
-  CheckCircle2,
-  FileText,
-  Image as ImageIcon,
   Bell,
+  Briefcase,
+  CheckCircle2,
+  ChevronRight,
+  FileText,
+  FolderOpen,
+  Hash,
+  Layers,
+  Link as LinkIcon,
+  Lock,
+  Mail,
+  MapPin,
+  Menu,
+  MessageSquare,
+  MoreHorizontal,
+  Plus,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  TrendingUp,
+  Trophy,
+  User as UserIcon,
   UserPlus,
   Users,
-  AtSign,
-  Hash,
-  MapPin,
-  TrendingUp,
-  Layers,
-  Menu,
-  Globe,
-  Sparkles,
   Vote,
-  Trophy,
-  Paperclip,
-  Trash2,
-  FolderOpen,
-  ShieldCheck,
-  ShieldAlert,
-  Settings,
-  Mail,
-  Lock,
-  Newspaper,
   Wand2,
-  ArrowRight,
+  X
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import Markdown from "react-markdown";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { AdminPanel } from "./components/AdminPanel";
 import { ProfilePanel } from "./components/ProfilePanel";
 import { SetupPage } from "./components/SetupPage";
+import { Avatar } from "./components/ui/Avatar";
 import { Button } from "./components/ui/Button";
 import { Card } from "./components/ui/Card";
-import { Avatar } from "./components/ui/Avatar";
-import { cn, fetchAPI } from "./lib/utils";
-import {
-  User,
-  Post,
-  CVSection,
-  Skill,
-  PortfolioItem,
+import { cn } from "./lib/utils";
+import { geminiService } from "./services/aiClient";
+import * as api from "./services/api";
+import type{
   Comment,
   FileItem,
+  Post,
+  User
 } from "./types";
-import { geminiService } from "./services/geminiService";
-import { formatDistanceToNow, isValid } from "date-fns";
-import Markdown from "react-markdown";
-import { useTranslation } from "react-i18next";
 
 // --- Views ---
 
@@ -79,6 +64,12 @@ const stringId = (id: any) => {
   if (!id) return "";
   if (typeof id === "string" && id.includes(":")) return id.split(":")[1];
   return id.toString();
+};
+
+const normalizeUserId = (id: string | number) => {
+  const raw = String(id || "").trim();
+  if (!raw) return "";
+  return raw.includes(":") ? raw : `users:${raw}`;
 };
 
 const PostCard = ({
@@ -126,7 +117,7 @@ const PostCard = ({
   };
 
   const loadComments = async () => {
-    const data = await fetchAPI(`/api/posts/${post.id}/comments`);
+    const data = await api.comments.list(post.id);
     setComments(data);
   };
 
@@ -136,14 +127,7 @@ const PostCard = ({
 
   const submitComment = async () => {
     if (!newComment || !currentUser) return;
-    await fetchAPI("/api/comments", {
-      method: "POST",
-      body: JSON.stringify({
-        user_id: currentUser.id,
-        post_id: post.id,
-        content: newComment,
-      }),
-    });
+    await api.comments.create(post.id, currentUser.id, newComment);
     setNewComment("");
     loadComments();
   };
@@ -177,10 +161,10 @@ const PostCard = ({
                 <>Just now</>
               )}
             </span>
-            
+
             {canManage && (
               <div className="relative">
-                <button 
+                <button
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                   className="p-1 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-400 hover:text-black"
                 >
@@ -190,8 +174,8 @@ const PostCard = ({
                 <AnimatePresence>
                   {isMenuOpen && (
                     <>
-                      <div 
-                        className="fixed inset-0 z-10" 
+                      <div
+                        className="fixed inset-0 z-10"
                         onClick={() => setIsMenuOpen(false)}
                       />
                       <motion.div
@@ -322,43 +306,43 @@ const PostCard = ({
                   const data = typeof post.poll_data === 'string' ? JSON.parse(post.poll_data) : post.poll_data;
                   if (!data?.options) return null;
                   return data.options.map((opt: string, i: number) => {
-                      const stats =
-                        post.response_stats?.split(",").map((s: string) => s.split(":")) ||
-                        [];
-                      const votes = Number(
-                        stats.find((s: string[]) => s[0] === String(i))?.[1] || 0,
-                      );
-                      const total = stats.reduce(
-                        (acc: number, curr: string[]) => acc + Number(curr[1]),
-                        0,
-                      );
-                      const percent =
-                        total > 0 ? Math.round((votes / total) * 100) : 0;
+                    const stats =
+                      post.response_stats?.split(",").map((s: string) => s.split(":")) ||
+                      [];
+                    const votes = Number(
+                      stats.find((s: string[]) => s[0] === String(i))?.[1] || 0,
+                    );
+                    const total = stats.reduce(
+                      (acc: number, curr: string[]) => acc + Number(curr[1]),
+                      0,
+                    );
+                    const percent =
+                      total > 0 ? Math.round((votes / total) * 100) : 0;
 
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => onRespond(post.id, "poll", i)}
-                          className="w-full text-left p-2 rounded-lg bg-white border border-blue-100 hover:border-blue-400 text-xs transition-all relative overflow-hidden"
-                        >
-                          <div
-                            className="absolute inset-y-0 left-0 bg-blue-100/50 transition-all duration-1000"
-                            style={{ width: `${percent}%` }}
-                          />
-                          <div className="flex justify-between items-center relative z-10 w-full">
-                            <span className="font-medium">{opt}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-blue-400">
-                                {votes}
-                              </span>
-                              <span className="text-[10px] text-blue-600 font-bold">
-                                {percent}%
-                              </span>
-                            </div>
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => onRespond(post.id, "poll", i)}
+                        className="w-full text-left p-2 rounded-lg bg-white border border-blue-100 hover:border-blue-400 text-xs transition-all relative overflow-hidden"
+                      >
+                        <div
+                          className="absolute inset-y-0 left-0 bg-blue-100/50 transition-all duration-1000"
+                          style={{ width: `${percent}%` }}
+                        />
+                        <div className="flex justify-between items-center relative z-10 w-full">
+                          <span className="font-medium">{opt}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-blue-400">
+                              {votes}
+                            </span>
+                            <span className="text-[10px] text-blue-600 font-bold">
+                              {percent}%
+                            </span>
                           </div>
-                        </button>
-                      );
-                    },
+                        </div>
+                      </button>
+                    );
+                  },
                   );
                 } catch (e) {
                   return null;
@@ -541,6 +525,7 @@ export default function App() {
     null,
   );
   const [profileData, setProfileData] = useState<any>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [candidates, setCandidates] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
@@ -687,10 +672,7 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetchAPI("/api/auth/check-email", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      });
+      const res = await api.auth.checkEmail(email);
       if (res.exists) {
         setAuthStep("password");
       } else {
@@ -707,10 +689,7 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const user = await fetchAPI("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+      const user = await api.auth.login(email, password);
       completeLogin(user);
     } catch (err: any) {
       handleFetchError(err);
@@ -724,10 +703,7 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const user = await fetchAPI("/api/auth/register", {
-        method: "POST",
-        body: JSON.stringify({ email, password, full_name: fullName }),
-      });
+      const user = await api.auth.register(email, password, fullName);
       completeLogin(user);
     } catch (err: any) {
       setError(err.message || "Registration failed");
@@ -740,10 +716,7 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetchAPI("/api/auth/forgot-password", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      });
+      const res = await api.auth.forgotPassword(email);
       setDebugOtp(res.debug_otp); // For demo
       setAuthStep("verify");
     } catch (err: any) {
@@ -757,10 +730,7 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      await fetchAPI("/api/auth/verify-otp", {
-        method: "POST",
-        body: JSON.stringify({ email, otp }),
-      });
+      await api.auth.verifyOtp(email, otp);
       setAuthStep("new_pass");
     } catch (err: any) {
       setError(err.message || "Invalid OTP");
@@ -773,10 +743,7 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      await fetchAPI("/api/auth/reset-password", {
-        method: "POST",
-        body: JSON.stringify({ email, otp, newPassword }),
-      });
+      await api.auth.resetPassword(email, otp, newPassword);
       setAuthStep("password");
       setPassword("");
       alert("Password reset successfully. Please login.");
@@ -827,7 +794,7 @@ export default function App() {
   };
   const fetchPlaces = async () => {
     try {
-      const data = await fetchAPI("/api/places");
+      const data = await api.places.list();
       setPlaces(data);
     } catch (e) {
       console.error(e);
@@ -836,10 +803,7 @@ export default function App() {
 
   const login = async (loginEmail: string) => {
     try {
-      const user = await fetchAPI("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email: loginEmail }),
-      });
+      const user = await api.auth.login(loginEmail, '');
       setCurrentUser(user);
       setSelectedUserId(user.id);
       if (user.place_id) {
@@ -865,7 +829,11 @@ export default function App() {
   const checkSession = async () => {
     if (!currentUser) return;
     try {
-      await fetchAPI("/api/auth/me");
+      const freshUser = await api.auth.me();
+      if (freshUser && freshUser.id) {
+        setCurrentUser((prev: any) => ({ ...prev, ...freshUser }));
+        localStorage.setItem("currentUser", JSON.stringify({ ...currentUser, ...freshUser }));
+      }
     } catch (err) {
       console.error("Session verification failed, logging out", err);
       logout();
@@ -874,7 +842,7 @@ export default function App() {
 
   const fetchTopics = async () => {
     try {
-      const data = await fetchAPI("/api/topics");
+      const data = await api.topics.list();
       setTopics(data);
     } catch (err) {
       console.error(err);
@@ -883,7 +851,7 @@ export default function App() {
 
   const checkSetupStatus = async () => {
     try {
-      const data = await fetchAPI("/api/setup/status");
+      const data = await api.setup.status();
       setIsSetupNeeded(!data.initialized);
     } catch (err) {
       console.error("Setup check failed", err);
@@ -937,9 +905,7 @@ export default function App() {
   const fetchConversations = async () => {
     if (!currentUser) return;
     try {
-      const data = await fetchAPI(
-        `/api/messages/conversations/${currentUser.id}`,
-      );
+      const data = await api.messages.conversations(currentUser.id);
       setConversations(data);
     } catch (err) {
       console.error(err);
@@ -949,9 +915,7 @@ export default function App() {
   const fetchChatMessages = async (targetId: string | number) => {
     if (!currentUser) return;
     try {
-      const data = await fetchAPI(
-        `/api/messages/${currentUser.id}/${targetId}`,
-      );
+      const data = await api.messages.thread(currentUser.id, targetId);
       setChatMessages(data);
       if (activeTab === "messages" && !activeChatUser) {
         fetchConversations();
@@ -964,14 +928,7 @@ export default function App() {
   const sendChatMessage = async () => {
     if (!currentUser || !activeChatUser || !newChatMessage.trim()) return;
     try {
-      await fetchAPI("/api/messages", {
-        method: "POST",
-        body: JSON.stringify({
-          sender_id: currentUser.id,
-          receiver_id: activeChatUser.id,
-          content: newChatMessage,
-        }),
-      });
+      await api.messages.send(currentUser.id, activeChatUser.id, newChatMessage);
       setNewChatMessage("");
       fetchChatMessages(activeChatUser.id);
       fetchConversations();
@@ -1006,9 +963,7 @@ export default function App() {
     }
     setLoading(true);
     try {
-      const data = await fetchAPI(
-        `/api/search?q=${searchQuery}&type=${searchType || "all"}`,
-      );
+      const data = await api.search.all(searchQuery, searchType || 'all');
       setSearchResults(data);
       setPosts(data.posts || []);
       setJobs(data.jobs || []);
@@ -1024,7 +979,7 @@ export default function App() {
   const fetchFeed = async () => {
     setLoading(true);
     try {
-      const data = await fetchAPI("/api/content");
+      const data = await api.posts.feed();
       setPosts(data);
     } finally {
       setLoading(false);
@@ -1033,7 +988,7 @@ export default function App() {
 
   const fetchApplicants = async (jobId: string | number) => {
     try {
-      const data = await fetchAPI(`/api/jobs/${jobId}/applicants`);
+      const data = await api.jobs.applicants(jobId);
       setApplicants(data);
       setSelectedJobId(jobId);
       setActiveMainTab("applicants");
@@ -1043,28 +998,28 @@ export default function App() {
   };
 
   const updateApplicantStatus = async (appId: number, status: string) => {
-    await fetchAPI("/api/jobs/applications/status", {
-      method: "POST",
-      body: JSON.stringify({ applicationId: appId, status }),
-    });
+    await api.jobs.updateApplicationStatus(appId, status);
     if (selectedJobId) fetchApplicants(selectedJobId);
   };
 
   const fetchProfile = async (id: number | string) => {
     setProfileData(null);
     setIsConnected(false);
+    setIsProfileLoading(true);
     try {
-      const viewerId = currentUser?.id ? `?viewerId=${currentUser.id}` : "";
-      const data = await fetchAPI(`/api/profile/${id}${viewerId}`);
+      const profileId = normalizeUserId(id);
+      if (!profileId) throw new Error("Invalid profile id");
+      const data = await api.profile.get(profileId, currentUser?.id ? normalizeUserId(currentUser.id) : undefined);
       if (!data || data.error) {
         throw new Error(data.error || "User not found");
       }
       setProfileData(data);
-      if (currentUser && currentUser.id !== id) {
+      if (
+        currentUser &&
+        normalizeUserId(currentUser.id) !== profileId
+      ) {
         try {
-          const connStatus = await fetchAPI(
-            `/api/connections/status/${currentUser.id}/${id}`,
-          );
+          const connStatus = await api.connections.status(normalizeUserId(currentUser.id), profileId);
           setIsConnected(connStatus.connected);
         } catch (e) {
           console.warn("Connection status check failed:", e);
@@ -1077,6 +1032,8 @@ export default function App() {
       } else {
         setError(err.message || "Profile not found");
       }
+    } finally {
+      setIsProfileLoading(false);
     }
   };
 
@@ -1084,18 +1041,10 @@ export default function App() {
     if (!currentUser) return;
     try {
       if (isConnected) {
-        await fetchAPI(`/api/connections/${currentUser.id}/${targetId}`, {
-          method: "DELETE",
-        });
+        await api.connections.remove(currentUser.id, String(targetId));
         setIsConnected(false);
       } else {
-        await fetchAPI("/api/connections", {
-          method: "POST",
-          body: JSON.stringify({
-            user_id: currentUser.id,
-            target_id: targetId,
-          }),
-        });
+        await api.connections.create(currentUser.id, targetId);
         setIsConnected(true);
       }
       fetchNotifications();
@@ -1106,7 +1055,7 @@ export default function App() {
 
   const fetchCandidates = async () => {
     try {
-      const data = await fetchAPI(`/api/candidates?skills=${searchQuery}`);
+      const data = await api.candidates.list(searchQuery);
       setCandidates(data);
     } catch (err) {
       console.error(err);
@@ -1115,10 +1064,7 @@ export default function App() {
 
   const fetchRecommendations = async () => {
     try {
-      const url = currentUser
-        ? `/api/recommendations/${currentUser.id}`
-        : "/api/recommendations";
-      const data = await fetchAPI(url);
+      const data = await api.recommendations.get(currentUser?.id);
       setRecommendations(data);
     } catch (err) {
       console.error(err);
@@ -1127,16 +1073,12 @@ export default function App() {
 
   const fetchJobs = async () => {
     try {
-      const query = new URLSearchParams();
-      const searchTerm = searchType === "jobs" ? searchQuery : jobFilters.q;
-      if (searchTerm) query.set("q", searchTerm);
-      if (jobFilters.experience !== "all")
-        query.set("experience", jobFilters.experience);
-      if (jobFilters.minSalary) query.set("minSalary", jobFilters.minSalary);
-      if (selectedPlaceId !== "all")
-        query.set("placeId", selectedPlaceId.toString());
-
-      const data = await fetchAPI(`/api/jobs?${query.toString()}`);
+      const data = await api.jobs.list({
+        q: searchType === 'jobs' ? searchQuery : jobFilters.q,
+        experience: jobFilters.experience,
+        minSalary: jobFilters.minSalary,
+        placeId: selectedPlaceId !== 'all' ? selectedPlaceId.toString() : undefined,
+      });
       setJobs(data);
     } catch (err) {
       console.error(err);
@@ -1152,15 +1094,7 @@ export default function App() {
 
   const applyToJob = async () => {
     if (!currentUser || !applyingToJobId) return;
-    const res = await fetchAPI("/api/jobs/apply", {
-      method: "POST",
-      body: JSON.stringify({
-        user_id: currentUser.id,
-        job_id: applyingToJobId,
-        attachment_type: appAttachmentType,
-        attachment_id: appAttachmentId,
-      }),
-    });
+    const res = await api.jobs.apply(currentUser.id, applyingToJobId, appAttachmentType, appAttachmentId);
     alert(res.message || "Application sent successfully!");
     setApplyingToJobId(null);
     setAppAttachmentType("none");
@@ -1170,13 +1104,10 @@ export default function App() {
   const postJob = async () => {
     if (!currentUser || !newJob.title || !newJob.description) return;
     try {
-      await fetchAPI("/api/jobs", {
-        method: "POST",
-        body: JSON.stringify({
-          user_id: currentUser.id,
-          company_name: currentUser.full_name,
-          ...newJob,
-        }),
+      await api.jobs.create({
+        user_id: currentUser.id,
+        company_name: currentUser.full_name,
+        ...newJob,
       });
       setNewJob({
         title: "",
@@ -1197,7 +1128,7 @@ export default function App() {
   const fetchNotifications = async () => {
     if (!currentUser) return;
     try {
-      const data = await fetchAPI(`/api/notifications/${currentUser.id}`);
+      const data = await api.notifications.list();
       setNotifications(data);
     } catch (err) {
       console.error(err);
@@ -1207,7 +1138,7 @@ export default function App() {
   const fetchUserFiles = async () => {
     if (!currentUser) return;
     try {
-      const data = await fetchAPI(`/api/files/${currentUser.id}`);
+      const data = await api.files.list(currentUser.id);
       setUserFiles(data);
     } catch (err) {
       console.error(err);
@@ -1222,25 +1153,16 @@ export default function App() {
   ) => {
     if (!currentUser) return;
     try {
-      await fetchAPI("/api/files", {
-        method: "POST",
-        body: JSON.stringify({
-          user_id: currentUser.id,
-          name,
-          url,
-          type,
-          purpose,
-        }),
-      });
+      await api.files.upload(currentUser.id, name, url, type, purpose);
       fetchUserFiles();
     } catch (err) {
       console.error(err);
     }
   };
 
-  const deleteFile = async (fileId: number) => {
+  const deleteFile = async (fileId: string | number) => {
     try {
-      await fetchAPI(`/api/files/${fileId}`, { method: "DELETE" });
+      await api.files.delete(fileId);
       fetchUserFiles();
     } catch (err) {
       console.error(err);
@@ -1250,7 +1172,7 @@ export default function App() {
   const fetchJobAlerts = async () => {
     if (!currentUser) return;
     try {
-      const data = await fetchAPI(`/api/job-alerts/${currentUser.id}`);
+      const data = await api.jobAlerts.list(currentUser.id);
       setJobAlerts(data);
     } catch (err) {
       console.error(err);
@@ -1260,10 +1182,7 @@ export default function App() {
   const createJobAlert = async () => {
     if (!currentUser) return;
     try {
-      await fetchAPI("/api/job-alerts", {
-        method: "POST",
-        body: JSON.stringify({ ...newJobAlert, user_id: currentUser.id }),
-      });
+      await api.jobAlerts.create(currentUser.id, newJobAlert);
       setNewJobAlert({ keyword: "", experience_level: "all", location: "" });
       setShowJobAlertForm(false);
       fetchJobAlerts();
@@ -1274,7 +1193,7 @@ export default function App() {
 
   const deleteJobAlert = async (id: string | number) => {
     try {
-      await fetchAPI(`/api/job-alerts/${id}`, { method: "DELETE" });
+      await api.jobAlerts.delete(id);
       fetchJobAlerts();
     } catch (err) {
       console.error(err);
@@ -1294,10 +1213,7 @@ export default function App() {
   }, [currentUser]);
 
   const markAsRead = async (id: number) => {
-    await fetchAPI("/api/notifications/read", {
-      method: "POST",
-      body: JSON.stringify({ notificationId: id }),
-    });
+    await api.notifications.markRead(id);
     fetchNotifications();
   };
 
@@ -1336,7 +1252,11 @@ export default function App() {
   const handleAiMagicPost = async (instruction?: string) => {
     setIsAiLoading(true);
     try {
-      const result = await geminiService.magicPost(postContent, instruction);
+      const result = await geminiService.magicPost(postContent, instruction, {
+        onChunk: (_chunk, fullText) => {
+          if (fullText) setPostContent(fullText);
+        },
+      });
       if (result) {
         setAiOptimizedPost(result);
         setPostContent(result.optimizedContent);
@@ -1373,14 +1293,7 @@ export default function App() {
     index: number,
   ) => {
     try {
-      await fetchAPI(`/api/posts/${postId}/respond`, {
-        method: "POST",
-        body: JSON.stringify({
-          user_id: currentUser!.id,
-          type,
-          response_index: index,
-        }),
-      });
+      await api.posts.respond(postId, currentUser!.id, type, index);
       fetchFeed();
     } catch (error) {
       console.error(error);
@@ -1426,10 +1339,7 @@ export default function App() {
   const updateProfile = async () => {
     if (!currentUser) return;
     try {
-      const resp = await fetchAPI("/api/profile", {
-        method: "PUT",
-        body: JSON.stringify({ ...profileForm, user_id: currentUser.id }),
-      });
+      const resp = await api.profile.update(currentUser.id, profileForm);
       if (resp.success) {
         // Refresh profile data in panel
         fetchProfile(currentUser.id);
@@ -1447,10 +1357,7 @@ export default function App() {
   const addSkill = async (skillData?: any) => {
     if (!currentUser) return;
     const data = skillData || skillForm;
-    await fetchAPI("/api/skills", {
-      method: "POST",
-      body: JSON.stringify({ ...data, user_id: currentUser.id }),
-    });
+    await api.skills.add(currentUser.id, data);
     fetchProfile(currentUser.id);
     setShowSkillForm(false);
     setSkillForm({ name: "", proficiency: 3, verification_url: "" });
@@ -1458,24 +1365,14 @@ export default function App() {
 
   const verifySkill = async (skillName: string, url: string) => {
     if (!currentUser || !url) return;
-    await fetchAPI("/api/skills/verify", {
-      method: "POST",
-      body: JSON.stringify({
-        user_id: currentUser.id,
-        name: skillName,
-        verification_url: url,
-      }),
-    });
+    await api.skills.verify(currentUser.id, skillName, url);
     fetchProfile(currentUser.id);
   };
 
   const addPortfolioItem = async (pData?: any) => {
     if (!currentUser) return;
     const data = pData || portfolioForm;
-    await fetchAPI("/api/portfolio", {
-      method: "POST",
-      body: JSON.stringify({ ...data, user_id: currentUser.id }),
-    });
+    await api.portfolio.add(currentUser.id, data);
     fetchProfile(currentUser.id);
     setShowPortfolioForm(false);
   };
@@ -1484,10 +1381,7 @@ export default function App() {
     if (!currentUser) return;
     const data = cData || cvForm;
     try {
-      await fetchAPI("/api/cv", {
-        method: "POST",
-        body: JSON.stringify({ ...data, user_id: currentUser.id }),
-      });
+      await api.cv.add(currentUser.id, data);
       fetchProfile(currentUser.id);
       setShowCVForm(false);
       setCvForm({
@@ -1516,16 +1410,13 @@ export default function App() {
 
   const handleDeletePost = async (postId: string | number) => {
     try {
-      await fetchAPI(`/api/posts/${postId}`, {
-        method: "DELETE",
-        headers: { "x-user-id": currentUser?.id?.toString() || "" },
-      });
+      await api.posts.delete(postId);
       // Refresh posts
       if (searchQuery) {
         fetchSearch();
       } else {
-        const data = await fetchAPI("/api/content");
-        setPosts(data.posts || []);
+        const data = await api.posts.feed();
+        setPosts(Array.isArray(data) ? data : []);
       }
     } catch (e: any) {
       console.error(e);
@@ -1536,22 +1427,15 @@ export default function App() {
   const handleUpdatePost = async () => {
     if (!editingPostId || !editingPostContent) return;
     try {
-      await fetchAPI(`/api/posts/${editingPostId}`, {
-        method: "PUT",
-        headers: { 
-          "x-user-id": currentUser?.id?.toString() || "",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ content: editingPostContent }),
-      });
+      await api.posts.update(editingPostId, editingPostContent);
       setEditingPostId(null);
       setEditingPostContent("");
       // Refresh posts
       if (searchQuery) {
         fetchSearch();
       } else {
-        const data = await fetchAPI("/api/content");
-        setPosts(data.posts || []);
+        const data = await api.posts.feed();
+        setPosts(Array.isArray(data) ? data : []);
       }
     } catch (e: any) {
       console.error(e);
@@ -1562,16 +1446,13 @@ export default function App() {
 
   const submitPost = async () => {
     if ((!postContent && !postQuiz && !postPoll) || !currentUser) return;
-    await fetchAPI("/api/posts", {
-      method: "POST",
-      body: JSON.stringify({
-        user_id: currentUser.id,
-        content: postContent,
-        attachment_type: attachmentType === "none" ? null : attachmentType,
-        attachment_id: attachmentId,
-        quiz_data: postQuiz,
-        poll_data: postPoll,
-      }),
+    await api.posts.create({
+      user_id: currentUser.id,
+      content: postContent,
+      attachment_type: attachmentType === 'none' ? null : attachmentType,
+      attachment_id: attachmentId,
+      quiz_data: postQuiz,
+      poll_data: postPoll,
     });
     setPostContent("");
     setAttachmentType("none");
@@ -1628,7 +1509,7 @@ export default function App() {
                     >
                       <div className="flex items-center justify-between">
                         <h3 className="text-xl font-black tracking-tight">Edit Post</h3>
-                        <button 
+                        <button
                           onClick={() => setEditingPostId(null)}
                           className="p-2 hover:bg-neutral-100 rounded-full transition-colors"
                         >
@@ -1765,7 +1646,7 @@ export default function App() {
                           ) : (
                             <div className="p-4 bg-neutral-50 rounded-xl border border-dashed border-neutral-200">
                               <p className="text-[10px] text-neutral-400 text-center font-bold uppercase tracking-widest leading-relaxed">
-                                No discovery nodes found.<br/>Sync more to explore.
+                                No discovery nodes found.<br />Sync more to explore.
                               </p>
                             </div>
                           )}
@@ -1824,7 +1705,7 @@ export default function App() {
                         onClick={() => {
                           if (currentUser) {
                             setSelectedUserId(currentUser.id);
-                            setActiveTab(null);
+                            setActiveTab("profile");
                             setIsRightOpen(true);
                             setIsEditingProfile(false);
                           } else {
@@ -1933,81 +1814,81 @@ export default function App() {
                           {searchResults.users?.some(
                             (u: any) => u.is_company_rep,
                           ) && (
-                            <section>
-                              <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">
-                                {t("App.organizations") || "Organizations"}
-                              </h3>
-                              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-                                {searchResults.users
-                                  .filter((u: any) => u.is_company_rep)
-                                  .map((u: any) => (
-                                    <button
-                                      key={u.id}
-                                      onClick={() => {
-                                        setSelectedUserId(u.id);
-                                        setActiveTab("profile");
-                                        setIsRightOpen(true);
-                                      }}
-                                      className="flex-shrink-0 w-32 flex flex-col items-center text-center group"
-                                    >
-                                      <div className="relative">
+                              <section>
+                                <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">
+                                  {t("App.organizations") || "Organizations"}
+                                </h3>
+                                <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                                  {searchResults.users
+                                    .filter((u: any) => u.is_company_rep)
+                                    .map((u: any) => (
+                                      <button
+                                        key={u.id}
+                                        onClick={() => {
+                                          setSelectedUserId(u.id);
+                                          setActiveTab("profile");
+                                          setIsRightOpen(true);
+                                        }}
+                                        className="flex-shrink-0 w-32 flex flex-col items-center text-center group"
+                                      >
+                                        <div className="relative">
+                                          <Avatar
+                                            src={u.avatar_url}
+                                            name={u.full_name}
+                                            size="md"
+                                          />
+                                          <div className="absolute -bottom-1 -right-1 bg-black text-white p-1 rounded-full border border-white">
+                                            <Briefcase className="w-2 h-2" />
+                                          </div>
+                                        </div>
+                                        <p className="text-[10px] font-bold mt-2 truncate w-full">
+                                          {u.full_name}
+                                        </p>
+                                        <p className="text-[8px] text-neutral-400 truncate w-full uppercase">
+                                          Verified Org
+                                        </p>
+                                      </button>
+                                    ))}
+                                </div>
+                              </section>
+                            )}
+
+                          {searchResults.users?.some(
+                            (u: any) => !u.is_company_rep,
+                          ) && (
+                              <section>
+                                <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">
+                                  {t("App.users") || "Users"}
+                                </h3>
+                                <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                                  {searchResults.users
+                                    .filter((u: any) => !u.is_company_rep)
+                                    .map((u: any) => (
+                                      <button
+                                        key={u.id}
+                                        onClick={() => {
+                                          setSelectedUserId(u.id);
+                                          setActiveTab("profile");
+                                          setIsRightOpen(true);
+                                        }}
+                                        className="flex-shrink-0 w-32 flex flex-col items-center text-center group"
+                                      >
                                         <Avatar
                                           src={u.avatar_url}
                                           name={u.full_name}
                                           size="md"
                                         />
-                                        <div className="absolute -bottom-1 -right-1 bg-black text-white p-1 rounded-full border border-white">
-                                          <Briefcase className="w-2 h-2" />
-                                        </div>
-                                      </div>
-                                      <p className="text-[10px] font-bold mt-2 truncate w-full">
-                                        {u.full_name}
-                                      </p>
-                                      <p className="text-[8px] text-neutral-400 truncate w-full uppercase">
-                                        Verified Org
-                                      </p>
-                                    </button>
-                                  ))}
-                              </div>
-                            </section>
-                          )}
-
-                          {searchResults.users?.some(
-                            (u: any) => !u.is_company_rep,
-                          ) && (
-                            <section>
-                              <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">
-                                {t("App.users") || "Users"}
-                              </h3>
-                              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-                                {searchResults.users
-                                  .filter((u: any) => !u.is_company_rep)
-                                  .map((u: any) => (
-                                    <button
-                                      key={u.id}
-                                      onClick={() => {
-                                        setSelectedUserId(u.id);
-                                        setActiveTab("profile");
-                                        setIsRightOpen(true);
-                                      }}
-                                      className="flex-shrink-0 w-32 flex flex-col items-center text-center group"
-                                    >
-                                      <Avatar
-                                        src={u.avatar_url}
-                                        name={u.full_name}
-                                        size="md"
-                                      />
-                                      <p className="text-[10px] font-bold mt-2 truncate w-full">
-                                        {u.full_name}
-                                      </p>
-                                      <p className="text-[8px] text-neutral-400 truncate w-full uppercase font-mono">
-                                        {u.headline?.split("|")[0]}
-                                      </p>
-                                    </button>
-                                  ))}
-                              </div>
-                            </section>
-                          )}
+                                        <p className="text-[10px] font-bold mt-2 truncate w-full">
+                                          {u.full_name}
+                                        </p>
+                                        <p className="text-[8px] text-neutral-400 truncate w-full uppercase font-mono">
+                                          {u.headline?.split("|")[0]}
+                                        </p>
+                                      </button>
+                                    ))}
+                                </div>
+                              </section>
+                            )}
                         </div>
                       )}
 
@@ -2197,7 +2078,7 @@ export default function App() {
                                     className={cn(
                                       "p-1.5 rounded-lg transition-all flex items-center gap-2 text-purple-600 hover:bg-purple-50",
                                       showAiPrompt &&
-                                        "bg-purple-50 shadow-inner",
+                                      "bg-purple-50 shadow-inner",
                                     )}
                                     title={t("ai_command")}
                                   >
@@ -2403,7 +2284,7 @@ export default function App() {
                                         className={cn(
                                           "flex-1 bg-white border border-yellow-50 rounded-lg px-3 py-1.5 text-[10px] focus:ring-1 focus:ring-yellow-500 outline-none",
                                           postQuiz.correctIndex === i &&
-                                            "border-yellow-300 ring-1 ring-yellow-300",
+                                          "border-yellow-300 ring-1 ring-yellow-300",
                                         )}
                                         value={opt}
                                         onChange={(e) => {
@@ -2737,46 +2618,46 @@ export default function App() {
                                 {aiApplicantsFeedback?.find(
                                   (f) => f.applicantId === applicant.user_id,
                                 ) && (
-                                  <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-lg animate-in fade-in zoom-in-95">
-                                    <div className="flex items-center justify-between mb-1">
-                                      <div className="flex items-center gap-1">
-                                        <Sparkles className="w-2.5 h-2.5 text-blue-500" />
-                                        <span className="text-[8px] font-bold text-blue-600 uppercase">
-                                          AI Analysis
+                                    <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-lg animate-in fade-in zoom-in-95">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-1">
+                                          <Sparkles className="w-2.5 h-2.5 text-blue-500" />
+                                          <span className="text-[8px] font-bold text-blue-600 uppercase">
+                                            AI Analysis
+                                          </span>
+                                        </div>
+                                        <span
+                                          className={cn(
+                                            "text-[10px] font-bold",
+                                            (aiApplicantsFeedback.find(
+                                              (f) =>
+                                                f.applicantId ===
+                                                applicant.user_id,
+                                            )?.score || 0) > 80
+                                              ? "text-green-600"
+                                              : "text-blue-600",
+                                          )}
+                                        >
+                                          {
+                                            aiApplicantsFeedback.find(
+                                              (f) =>
+                                                f.applicantId ===
+                                                applicant.user_id,
+                                            )?.score
+                                          }
+                                          %
                                         </span>
                                       </div>
-                                      <span
-                                        className={cn(
-                                          "text-[10px] font-bold",
-                                          (aiApplicantsFeedback.find(
-                                            (f) =>
-                                              f.applicantId ===
-                                              applicant.user_id,
-                                          )?.score || 0) > 80
-                                            ? "text-green-600"
-                                            : "text-blue-600",
-                                        )}
-                                      >
+                                      <p className="text-[9px] text-blue-800 line-clamp-2 italic">
                                         {
                                           aiApplicantsFeedback.find(
                                             (f) =>
-                                              f.applicantId ===
-                                              applicant.user_id,
-                                          )?.score
+                                              f.applicantId === applicant.user_id,
+                                          )?.reasoning
                                         }
-                                        %
-                                      </span>
+                                      </p>
                                     </div>
-                                    <p className="text-[9px] text-blue-800 line-clamp-2 italic">
-                                      {
-                                        aiApplicantsFeedback.find(
-                                          (f) =>
-                                            f.applicantId === applicant.user_id,
-                                        )?.reasoning
-                                      }
-                                    </p>
-                                  </div>
-                                )}
+                                  )}
                               </div>
                               <div className="flex gap-2">
                                 {applicant.status === "pending" && (
@@ -3288,41 +3169,41 @@ export default function App() {
                                           </button>
                                         </div>
 
-                          {appAttachmentType === "cv_item" && (
-                            <select
-                              className="w-full text-[10px] bg-white border border-neutral-200 rounded-lg px-2 py-2 mb-3 outline-none"
-                              onChange={(e) =>
-                                setAppAttachmentId(e.target.value)
-                              }
-                            >
-                              <option value="">
-                                Select relevant experience...
-                              </option>
-                              {profileData?.cv?.map((item: any) => (
-                                <option key={item.id} value={item.id}>
-                                  {item.title} at {item.subtitle}
-                                </option>
-                              ))}
-                            </select>
-                          )}
+                                        {appAttachmentType === "cv_item" && (
+                                          <select
+                                            className="w-full text-[10px] bg-white border border-neutral-200 rounded-lg px-2 py-2 mb-3 outline-none"
+                                            onChange={(e) =>
+                                              setAppAttachmentId(e.target.value)
+                                            }
+                                          >
+                                            <option value="">
+                                              Select relevant experience...
+                                            </option>
+                                            {profileData?.cv?.map((item: any) => (
+                                              <option key={item.id} value={item.id}>
+                                                {item.title} at {item.subtitle}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        )}
 
-                          {appAttachmentType === "portfolio_item" && (
-                            <select
-                              className="w-full text-[10px] bg-white border border-neutral-200 rounded-lg px-2 py-2 mb-3 outline-none"
-                              onChange={(e) =>
-                                setAppAttachmentId(e.target.value)
-                              }
-                            >
-                              <option value="">
-                                Select relevant project...
-                              </option>
-                              {profileData?.portfolio?.map((item: any) => (
-                                <option key={item.id} value={item.id}>
-                                  {item.title}
-                                </option>
-                              ))}
-                            </select>
-                          )}
+                                        {appAttachmentType === "portfolio_item" && (
+                                          <select
+                                            className="w-full text-[10px] bg-white border border-neutral-200 rounded-lg px-2 py-2 mb-3 outline-none"
+                                            onChange={(e) =>
+                                              setAppAttachmentId(e.target.value)
+                                            }
+                                          >
+                                            <option value="">
+                                              Select relevant project...
+                                            </option>
+                                            {profileData?.portfolio?.map((item: any) => (
+                                              <option key={item.id} value={item.id}>
+                                                {item.title}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        )}
 
                                         <div className="flex gap-2">
                                           <Button
@@ -3359,7 +3240,7 @@ export default function App() {
                               </div>
                               <div className="mt-4 pt-4 border-t border-neutral-100 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
                                 {job.created_at &&
-                                isValid(new Date(job.created_at)) ? (
+                                  isValid(new Date(job.created_at)) ? (
                                   <span>
                                     Posted{" "}
                                     {formatDistanceToNow(
@@ -3426,13 +3307,7 @@ export default function App() {
                               : e.target.value;
                           setSelectedPlaceId(pid);
                           if (currentUser) {
-                            fetchAPI("/api/user/preference/place", {
-                              method: "POST",
-                              body: JSON.stringify({
-                                user_id: currentUser.id,
-                                place_id: pid,
-                              }),
-                            });
+                            api.userPrefs.setPlace(currentUser.id, pid);
                           }
                         }}
                       >
@@ -3769,8 +3644,8 @@ export default function App() {
                             (acc, c) => acc + (c.unread_count || 0),
                             0,
                           ) > 0 && (
-                            <span className="absolute top-2 right-4 w-1.5 h-1.5 bg-red-500 rounded-full border border-white" />
-                          )}
+                              <span className="absolute top-2 right-4 w-1.5 h-1.5 bg-red-500 rounded-full border border-white" />
+                            )}
                         </button>
                       </div>
 
@@ -3813,11 +3688,11 @@ export default function App() {
                                             {conv.last_message_time && (
                                               <span className="text-[8px] text-neutral-400">
                                                 {conv.last_message_time &&
-                                                isValid(
-                                                  new Date(
-                                                    conv.last_message_time,
-                                                  ),
-                                                )
+                                                  isValid(
+                                                    new Date(
+                                                      conv.last_message_time,
+                                                    ),
+                                                  )
                                                   ? `${formatDistanceToNow(new Date(conv.last_message_time))} ago`
                                                   : ""}
                                               </span>
@@ -3962,7 +3837,7 @@ export default function App() {
                                           </p>
                                           <span className="text-[8px] text-neutral-400 whitespace-nowrap">
                                             {n.created_at &&
-                                            isValid(new Date(n.created_at))
+                                              isValid(new Date(n.created_at))
                                               ? `${formatDistanceToNow(new Date(n.created_at))} ago`
                                               : ""}
                                           </span>
@@ -3986,9 +3861,25 @@ export default function App() {
                               </div>
                             )}
                           </div>
+                        ) : isProfileLoading ? (
+                          <div className="flex flex-col items-center justify-center py-20 gap-3 text-neutral-300">
+                            <div className="w-6 h-6 border-2 border-neutral-200 border-t-black rounded-full animate-spin" />
+                            <p className="text-[10px] font-mono uppercase tracking-widest">Syncing identity...</p>
+                          </div>
+                        ) : !profileData ? (
+                          <div className="flex flex-col items-center justify-center py-20 gap-4">
+                            <p className="text-[10px] font-mono uppercase tracking-widest text-neutral-300">No profile data</p>
+                            {selectedUserId && (
+                              <button
+                                onClick={() => fetchProfile(selectedUserId)}
+                                className="text-[10px] font-black uppercase tracking-widest text-black hover:opacity-60 transition-opacity"
+                              >
+                                Retry
+                              </button>
+                            )}
+                          </div>
                         ) : (
-                          profileData && (
-                            <div className="space-y-6">
+                          <div className="space-y-6">
                               {isEditingProfile ? (
                                 <div className="animate-in fade-in slide-in-from-top-4 duration-500">
                                   <header className="flex flex-col items-center text-center mb-8">
@@ -4095,7 +3986,6 @@ export default function App() {
                                 />
                               )}
                             </div>
-                          )
                         )}
                       </div>
                     </>

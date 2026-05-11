@@ -1,13 +1,13 @@
-import { defineNitroConfig } from 'nitro/config';
+import { defineConfig } from "nitro";
 
-export default defineNitroConfig({
-  preset: 'vercel',
-  serverDir: 'server',
+export default defineConfig({
+  preset: "cloudflare-module",
+  serverDir: "server",
   publicAssets: [
     {
-      dir: 'dist',
+      dir: "dist",
       maxAge: 60 * 60 * 24 * 365,
-      baseURL: '/',
+      baseURL: "/",
     },
   ],
 });
