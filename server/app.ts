@@ -310,7 +310,7 @@ const isAdmin = async (req: any, res: any, next: any) => {
       console.warn(`Admin access denied for user ${idRecord} (role: ${user.role})`);
       return res.status(403).json({ error: 'Forbidden: Admin access required' });
     }
-    next();
+    return next();
   } catch (e) {
     console.error('Admin check error:', e);
     return res.status(401).json({ error: 'Unauthorized' });
@@ -582,6 +582,56 @@ apiRouter.use(async (req, res, next) => {
     try {
       await adapter.update('users', userId, { subscription });
       res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  // Generic endpoints (preferred by frontend) with admin RBAC
+  apiRouter.get('/analytics', isAdmin, async (req, res) => {
+    try {
+      const [users] = await db.query('SELECT count() as count FROM users GROUP ALL');
+      const [posts] = await db.query('SELECT count() as count FROM posts GROUP ALL');
+      const [jobs] = await db.query('SELECT count() as count FROM jobs GROUP ALL');
+      const [subs] = await db.query('SELECT subscription, count() as count FROM users GROUP BY subscription');
+      const [roles] = await db.query('SELECT role, count() as count FROM users GROUP BY role');
+
+      const stats = {
+        users: (users as any)?.[0] || { count: 0 },
+        posts: (posts as any)?.[0] || { count: 0 },
+        jobs: (jobs as any)?.[0] || { count: 0 },
+        subs: subs || [],
+        roles: roles || []
+      };
+      res.json(stats);
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  apiRouter.get('/users', isAdmin, async (req, res) => {
+    try {
+      const [users] = await db.query('SELECT id, full_name, email, role, subscription FROM users') as any;
+      res.json((users || []).map((u: any) => ({ ...u, id: stringId(u.id) })));
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  apiRouter.post('/users/subscription', isAdmin, async (req, res) => {
+    const { userId, subscription } = req.body;
+    try {
+      await adapter.update('users', userId, { subscription });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  apiRouter.post('/system/seed', isAdmin, async (req, res) => {
+    try {
+      await seedDB();
+      res.json({ success: true, message: 'Database re-seeded successfully' });
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
     }
@@ -1611,6 +1661,40 @@ apiRouter.use(async (req, res, next) => {
       // Find some companies to assign jobs to
       const [companies] = await db.query('SELECT id, company_name FROM users WHERE role = "company" LIMIT 5') as any;
       
+      if (!companies || companies.length === 0) {
+        return res.status(400).json({ error: 'No company accounts found to assign jobs to. Create some company accounts first.' });
+      }
+
+      const seedJobs = [
+        { title: 'Senior Software Engineer', location: 'Muscat, Oman', salary: '$5,000 - $8,000', experience: '5+ years' },
+        { title: 'Project Manager', location: 'Salalah, Oman', salary: '$4,000 - $6,000', experience: '3+ years' },
+        { title: 'Marketing Specialist', location: 'Dubai, UAE', salary: '$3,500 - $5,000', experience: '2+ years' },
+        { title: 'UX/UI Designer', location: 'Remote', salary: '$4,500 - $7,000', experience: '4+ years' },
+        { title: 'Data Scientist', location: 'Muscat, Oman', salary: '$6,000 - $9,000', experience: '3+ years' },
+      ];
+
+      for (const job of seedJobs) {
+        const company = companies[Math.floor(Math.random() * companies.length)];
+        await db.query('CREATE jobs SET user_id = $userId, title = $title, company_name = $company, location = $location, description = "Join our team in this exciting role!", salary_range = $salary, experience_level = $exp, end_date = time::now() + 30d, created_at = time::now()', {
+          userId: company.id,
+          title: job.title,
+          company: company.company_name || 'Innovate Oman',
+          location: job.location,
+          salary: job.salary,
+          exp: job.experience
+        });
+      }
+
+      res.json({ success: true, count: seedJobs.length });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  apiRouter.post('/system/seed-jobs', isAdmin, async (req, res) => {
+    try {
+      const [companies] = await db.query('SELECT id, company_name FROM users WHERE role = "company" LIMIT 5') as any;
+
       if (!companies || companies.length === 0) {
         return res.status(400).json({ error: 'No company accounts found to assign jobs to. Create some company accounts first.' });
       }

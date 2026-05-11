@@ -13,6 +13,7 @@
     "i18n:extract": "tsx extract-translations.ts"
   },
   "dependencies": {
+    "@casl/ability": "^6.7.3",
     "@google/genai": "^1.52.0",
     "@google/generative-ai": "^0.24.1",
     "@tailwindcss/vite": "^4.3.0",
