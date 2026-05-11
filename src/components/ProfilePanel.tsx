@@ -21,7 +21,7 @@ import {
   Trash2,
   LogOut,
 } from "lucide-react";
-import { User, CVSection, Skill, PortfolioItem } from "../types";
+import type { User, CVSection, Skill, PortfolioItem } from "../types";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Avatar } from "./ui/Avatar";
@@ -105,7 +105,15 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
     );
   }
 
-  const isOwnProfile = currentUser?.id === profileData.id;
+  const normalizeUserId = (id: string | number | null | undefined) => {
+    if (id === null || id === undefined) return "";
+    const raw = String(id).trim();
+    if (!raw) return "";
+    return raw.includes(":") ? raw : `users:${raw}`;
+  };
+
+  const isOwnProfile =
+    normalizeUserId(currentUser?.id) === normalizeUserId(profileData.id);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">

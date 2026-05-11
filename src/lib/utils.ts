@@ -17,7 +17,7 @@ export const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
       try {
         const user = JSON.parse(saved);
         if (user && user.id) {
-          headers['x-user-id'] = user.id;
+          headers['Authorization'] = `Bearer ${user.id}`;
         }
       } catch (e) {}
     }

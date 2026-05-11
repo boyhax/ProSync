@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { defineNitroConfig } from "nitropack/config";
 
 export default defineNitroConfig({
@@ -6,15 +7,18 @@ export default defineNitroConfig({
   srcDir: "server",
 =======
 import { defineNitroConfig } from 'nitro/config';
+=======
+import { defineConfig } from "nitro";
+>>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
 
-export default defineNitroConfig({
-  preset: 'vercel',
-  serverDir: 'server',
+export default defineConfig({
+  preset: "cloudflare-module",
+  serverDir: "server",
   publicAssets: [
     {
-      dir: 'dist',
+      dir: "dist",
       maxAge: 60 * 60 * 24 * 365,
-      baseURL: '/',
+      baseURL: "/",
     },
   ],
 >>>>>>> d322979 (feat: Implement SurrealDB adapter and connection management)

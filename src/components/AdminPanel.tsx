@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Users, CreditCard, Database, RotateCcw, BarChart3, TrendingUp, ShieldCheck, RefreshCw, Briefcase } from 'lucide-react';
-import { fetchAPI, cn } from '../lib/utils';
+import { cn } from '../lib/utils';
+import * as api from '../services/api';
 import { motion } from 'motion/react';
 
 interface AdminPanelProps {
@@ -84,9 +85,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
 
   const fetchAnalytics = async () => {
     try {
-      const data = await fetchAPI('/api/admin/analytics', {
-        headers: { 'x-user-id': currentUser.id.toString() }
-      });
+      const data = await api.admin.analytics();
       setAnalytics(data);
     } catch (e) {
       console.error(e);
@@ -95,9 +94,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
 
   const fetchUsers = async () => {
     try {
-      const data = await fetchAPI('/api/admin/users', {
-        headers: { 'x-user-id': currentUser.id.toString() }
-      });
+      const data = await api.admin.users();
       setUsers(data);
     } catch (e) {
       console.error(e);
@@ -108,10 +105,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     if (!confirm('Are you sure you want to RE-SEED the entire database? All current data (except this admin) might be lost if not in seed list.')) return;
     setIsLoading(true);
     try {
-      await fetchAPI('/api/admin/seed', {
-        method: 'POST',
-        headers: { 'x-user-id': currentUser.id.toString() }
-      });
+      await api.admin.seed();
       alert('Seeding complete. Please refresh to see changes.');
       window.location.reload();
     } catch (e) {
@@ -124,10 +118,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const handleSeedJobs = async () => {
     setIsLoading(true);
     try {
-      const res = await fetchAPI('/api/admin/seed-jobs', {
-        method: 'POST',
-        headers: { 'x-user-id': currentUser.id.toString() }
-      });
+      const res = await api.admin.seedJobs();
       alert(`Successfully seeded ${res.count} jobs.`);
     } catch (e: any) {
       alert(`Seeding failed: ${e.message}`);
@@ -138,14 +129,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
 
   const updateSubscription = async (userId: number, sub: string) => {
     try {
-      await fetchAPI('/api/admin/update-subscription', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-id': currentUser.id.toString() 
-        },
-        body: JSON.stringify({ userId, subscription: sub })
-      });
+      await api.admin.updateSubscription(userId, sub);
       fetchUsers();
       fetchAnalytics();
     } catch (e) {

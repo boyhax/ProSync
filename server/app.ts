@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import 'dotenv/config';
 import { Surreal, RecordId } from 'surrealdb';
-import { IDBAdapter } from './lib/db/db';
+import { type IDBAdapter } from './lib/db/db';
 import { getAdapter, getRawDb, resetConnection } from './lib/db/dbFactory';
+import { geminiService } from './services/geminiService';
 import bcrypt from 'bcryptjs';
 
 // Module-level references updated each request via factory (cached by factory)
@@ -30,6 +31,21 @@ const stringId = (id: any): string => {
   if (!id) return '';
   if (typeof id === 'string') return id;
   return id.toString();
+};
+
+const normalizeUserId = (value: unknown): string | null => {
+  if (value === null || value === undefined) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  return raw.includes(':') ? raw : `users:${raw}`;
+};
+
+// Extracts userId from Authorization: Bearer <userId> header
+const getAuthUserId = (req: any): string | null => {
+  const authHeader = req.headers['authorization'] as string | undefined;
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  const id = authHeader.slice(7).trim();
+  return id || null;
 };
 
 const expandOptionalPath = (path: string): string[] => {
@@ -65,8 +81,7 @@ const getCompatReq = async (c: any) => {
     }
   }
 
-  c.__compatReq = {
-    params: c.req.param(),
+  const compatReq: any = {
     query,
     body,
     headers,
@@ -76,6 +91,15 @@ const getCompatReq = async (c: any) => {
     db: undefined as Surreal | undefined,
     adapter: undefined as IDBAdapter | undefined,
   };
+  // Use getter so params are always read fresh from Hono's matched route.
+  // If cached as a plain property during wildcard middleware ('*'), the
+  // route-specific params (e.g. :userId) would be empty for all handlers.
+  Object.defineProperty(compatReq, 'params', {
+    get() { return c.req.param(); },
+    enumerable: true,
+    configurable: true,
+  });
+  c.__compatReq = compatReq;
 
   return c.__compatReq;
 };
@@ -267,7 +291,7 @@ async function setupDatabase() {
 
 // Midleware for RBAC
 const isAdmin = async (req: any, res: any, next: any) => {
-  const userId = req.headers['x-user-id'] as string;
+  const userId = getAuthUserId(req);
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
   
   try {
@@ -492,7 +516,7 @@ apiRouter.use(async (req, res, next) => {
     }
   });
   apiRouter.get('/auth/me', async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
+    const userId = getAuthUserId(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     try {
       const idRecord = userId.includes(':') ? userId : `users:${userId}`;
@@ -682,8 +706,9 @@ apiRouter.use(async (req, res, next) => {
   });
 
   // Notifications
-  apiRouter.get('/notifications/:userId', async (req, res) => {
-    const { userId } = req.params;
+  apiRouter.get('/notifications/:userId?', async (req, res) => {
+    const userId = req.params.userId || getAuthUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     const idRecord = userId.includes(':') ? userId : `users:${userId}`;
     try {
       const [notifications] = await db.query('SELECT * FROM notifications WHERE user_id = type::record($userId) ORDER BY created_at DESC LIMIT 20', { userId: idRecord }) as any;
@@ -702,7 +727,10 @@ apiRouter.use(async (req, res, next) => {
   // Connections
   apiRouter.get('/connections/status/:userId/:targetId', async (req, res) => {
     try {
-      const { userId, targetId } = req.params;
+      const rawU = req.params.userId;
+      const rawT = req.params.targetId;
+      const userId = (() => { try { return decodeURIComponent(rawU); } catch { return rawU; } })();
+      const targetId = (() => { try { return decodeURIComponent(rawT); } catch { return rawT; } })();
       const uId = userId.includes(':') ? userId : `users:${userId}`;
       const tId = targetId.includes(':') ? targetId : `users:${targetId}`;
       const [connection] = await db.query('SELECT id FROM connections WHERE user_id = type::record($uId) AND target_id = type::record($tId)', { uId, tId }) as any;
@@ -748,7 +776,10 @@ apiRouter.use(async (req, res, next) => {
 
   apiRouter.delete('/connections/:userId/:targetId', async (req, res) => {
     try {
-      const { userId, targetId } = req.params;
+      const rawU = req.params.userId;
+      const rawT = req.params.targetId;
+      const userId = (() => { try { return decodeURIComponent(rawU); } catch { return rawU; } })();
+      const targetId = (() => { try { return decodeURIComponent(rawT); } catch { return rawT; } })();
       const uId = userId.includes(':') ? userId : `users:${userId}`;
       const tId = targetId.includes(':') ? targetId : `users:${targetId}`;
       await db.query('DELETE FROM connections WHERE user_id = type::record($uId) AND target_id = type::record($tId)', { uId: uId, tId: tId });
@@ -914,7 +945,9 @@ apiRouter.use(async (req, res, next) => {
   // Job Alerts
   apiRouter.get('/job-alerts/:userId', async (req, res) => {
     try {
-      const { userId } = req.params;
+      const rawId = req.params.userId;
+      const userId = (() => { try { return decodeURIComponent(rawId); } catch { return rawId; } })();
+      if (!userId) return res.status(400).json({ error: 'Missing userId parameter' });
       const idRecord = userId.includes(':') ? userId : `users:${userId}`;
       const [alerts] = await db.query('SELECT * FROM job_alerts WHERE user_id = type::record($userId)', { userId: idRecord }) as any;
       res.json(alerts || []);
@@ -942,7 +975,9 @@ apiRouter.use(async (req, res, next) => {
 
   // Messages
   apiRouter.get('/messages/conversations/:userId', async (req, res) => {
-    const { userId } = req.params;
+    const rawId = req.params.userId;
+    const userId = (() => { try { return decodeURIComponent(rawId); } catch { return rawId; } })();
+    if (!userId) return res.status(400).json({ error: 'Missing userId parameter' });
     try {
       // Find all unique participants the user has messaged or received messages from
       const [messages] = await db.query(`
@@ -1094,17 +1129,32 @@ apiRouter.use(async (req, res, next) => {
   });
 
   apiRouter.get('/profile/:userId', async (req, res) => {
-    const { userId } = req.params;
+    const rawUserId = req.params.userId;
     const { viewerId } = req.query;
     
-    const idRecord = userId.includes(':') ? userId : `users:${userId}`;
+    if (!rawUserId) return res.status(400).json({ error: 'Missing userId parameter' });
+    // Decode in case the client percent-encoded the colon (e.g. users%3Afoo → users:foo)
+    const userId = (() => { try { return decodeURIComponent(rawUserId); } catch { return rawUserId; } })();
+    const idRecord = normalizeUserId(userId);
+    if (!idRecord) return res.status(400).json({ error: 'Invalid userId parameter' });
     
     try {
-      if (viewerId && viewerId !== userId) {
-        await db.query('UPDATE type::record($id) SET profile_views = (profile_views || 0) + 1, engagement = (engagement || 0) + 1', { id: idRecord });
+      const normalizedViewerId = normalizeUserId((() => { try { return viewerId ? decodeURIComponent(String(viewerId)) : viewerId; } catch { return viewerId; } })());
+      if (normalizedViewerId && normalizedViewerId !== idRecord) {
+        const [metricsRows] = await db.query('SELECT profile_views, engagement FROM type::record($id)', { id: idRecord }) as any;
+        const metrics = metricsRows?.[0] || {};
+        const profileViews = Number(metrics.profile_views || 0);
+        const engagement = Number(metrics.engagement || 0);
+        await db.query('UPDATE type::record($id) MERGE $data', {
+          id: idRecord,
+          data: {
+            profile_views: profileViews + 1,
+            engagement: engagement + 1,
+          },
+        });
       }
       
-      const [users] = await db.query('SELECT * FROM type::record($id)', { id: idRecord }) as any;
+      const [users] = await db.query('SELECT *, place_id.name as place_name FROM type::record($id)', { id: idRecord }) as any;
       const user = users?.[0];
       
       if (!user) {
@@ -1116,9 +1166,11 @@ apiRouter.use(async (req, res, next) => {
       const [portfolio] = await db.query('SELECT * FROM portfolio WHERE user_id = type::record($userId)', { userId: idRecord }) as any;
       const [jobs] = (user.is_company_rep || user.role === 'company' ? await db.query('SELECT * FROM jobs WHERE user_id = type::record($userId) ORDER BY created_at DESC', { userId: idRecord }) : [[]]) as any[];
       
+      const { password: _pw, ...userWithoutPassword } = user;
       const result = { 
-        ...user,
+        ...userWithoutPassword,
         id: stringId(user.id),
+        place_id: stringId(user.place_id),
         analytics: {
           profile_views: user.profile_views || 0,
           connections_received: user.connections_received || 0,
@@ -1132,7 +1184,7 @@ apiRouter.use(async (req, res, next) => {
       
       res.json(result);
     } catch (err) {
-      console.error(`Profile fetch error:`, err);
+      console.error(`Profile fetch error for ${idRecord}:`, err);
       res.status(500).json({ error: (err as Error).message });
     }
   });
@@ -1194,13 +1246,34 @@ apiRouter.use(async (req, res, next) => {
 
   apiRouter.post('/skills/verify', async (req, res) => {
     const { user_id, name, verification_url } = req.body;
-    const [userSkill] = await db.query('SELECT id FROM user_skills WHERE user_id = $user_id AND name = $name', { user_id, name }) as any;
+    if (!user_id) return res.status(400).json({ error: 'Missing user_id' });
+    const idRecord = user_id.includes(':') ? user_id : `users:${user_id}`;
+    const [userSkill] = await db.query('SELECT id FROM user_skills WHERE user_id = type::record($user_id) AND name = $name', { user_id: idRecord, name }) as any;
     if (userSkill?.[0]) {
       await db.query('UPDATE type::record($id) MERGE $data', { id: userSkill[0].id, data: { verification_url, is_verified: 1 } });
     } else {
       await db.query('CREATE user_skills CONTENT $data', { data: { user_id, name, verification_url, is_verified: 1 } });
     }
     res.json({ success: true });
+  });
+
+  apiRouter.post('/portfolio', async (req, res) => {
+    const { user_id, title, description, url, thumbnail_url } = req.body;
+    if (!user_id) return res.status(400).json({ error: 'Missing user_id' });
+    try {
+      const item = await adapter.insert<any>('portfolio', {
+        user_id: toRecordId(user_id, 'users'),
+        title,
+        description,
+        url,
+        thumbnail_url: thumbnail_url || null,
+        created_at: new Date().toISOString(),
+      });
+      res.json({ success: true, id: stringId(item.id) });
+    } catch (err) {
+      console.error('Portfolio creation error:', err);
+      res.status(500).json({ error: (err as Error).message });
+    }
   });
 
   apiRouter.post('/posts', async (req, res) => {
@@ -1317,7 +1390,8 @@ apiRouter.use(async (req, res, next) => {
   });
 
   apiRouter.get('/files/:userId', async (req, res) => {
-    const { userId } = req.params;
+    const rawId = req.params.userId;
+    const userId = (() => { try { return decodeURIComponent(rawId); } catch { return rawId; } })();
     const { purpose } = req.query;
     const idRecord = userId.includes(':') ? userId : `users:${userId}`;
     try {
@@ -1350,7 +1424,92 @@ apiRouter.use(async (req, res, next) => {
     res.json({ success: true });
   });
 
-  // AI logic has been moved to frontend.
+  // AI endpoints (server-side Gemini)
+  apiRouter.post('/ai/rank-jobs', async (req, res) => {
+    try {
+      const { jobs, query } = req.body || {};
+      if (!Array.isArray(jobs)) return res.status(400).json({ error: 'jobs must be an array' });
+      const ranked = await geminiService.rankJobs(jobs, String(query || ''));
+      res.json({ ranked });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  apiRouter.post('/ai/shortlist-applicants', async (req, res) => {
+    try {
+      const { jobDescription, applicants } = req.body || {};
+      if (!Array.isArray(applicants)) return res.status(400).json({ error: 'applicants must be an array' });
+      const feedback = await geminiService.shortlistApplicants(String(jobDescription || ''), applicants);
+      res.json({ feedback: feedback || [] });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  apiRouter.post('/ai/interactive', async (req, res) => {
+    try {
+      const { topic, type } = req.body || {};
+      if (type !== 'quiz' && type !== 'poll') return res.status(400).json({ error: 'type must be quiz or poll' });
+      const result = await geminiService.generateInteractiveContent(String(topic || ''), type);
+      res.json({ result });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  apiRouter.post('/ai/magic-post', async (req, res) => {
+    try {
+      const { content, instruction } = req.body || {};
+      const result = await geminiService.magicPost(String(content || ''), instruction ? String(instruction) : undefined);
+      res.json({ result });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  apiRouter.post('/ai/magic-post/stream', async (req, res) => {
+    try {
+      const { content, instruction } = req.body || {};
+      const encoder = new TextEncoder();
+      let fullText = '';
+
+      const stream = new ReadableStream({
+        start: async (controller) => {
+          const send = (event: string, payload: unknown) => {
+            controller.enqueue(
+              encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`),
+            );
+          };
+
+          try {
+            for await (const chunk of geminiService.magicPostStream(String(content || ''), instruction ? String(instruction) : undefined)) {
+              fullText += chunk;
+              send('chunk', { text: chunk, fullText });
+            }
+
+            const result = geminiService.buildMagicPostResultFromText(fullText);
+            send('done', { result });
+          } catch (error) {
+            send('error', { message: (error as Error).message });
+          } finally {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache, no-transform',
+          Connection: 'keep-alive',
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
   apiRouter.post('/user/preference/place', async (req, res) => {
     const { user_id, place_id } = req.body;
     await db.query('UPDATE type::record($userId) MERGE $data', { userId: user_id, data: { place_id: place_id === "all" ? null : place_id } });
@@ -1360,7 +1519,7 @@ apiRouter.use(async (req, res, next) => {
   // Mount API Router
   apiRouter.delete('/posts/:postId', async (req, res) => {
     const { postId } = req.params;
-    const userId = req.headers['x-user-id'];
+    const userId = getAuthUserId(req);
     
     if (!userId) return res.status(401).json({ error: 'Auth required' });
     
@@ -1385,7 +1544,7 @@ apiRouter.use(async (req, res, next) => {
   apiRouter.put('/posts/:postId', async (req, res) => {
     const { postId } = req.params;
     const { content } = req.body;
-    const userId = req.headers['x-user-id'];
+    const userId = getAuthUserId(req);
     
     if (!userId) return res.status(401).json({ error: 'Auth required' });
     
@@ -1408,7 +1567,7 @@ apiRouter.use(async (req, res, next) => {
   });
 
   apiRouter.post('/admin/seed-jobs', async (req, res) => {
-    const userId = req.headers['x-user-id'];
+    const userId = getAuthUserId(req);
     if (!userId) return res.status(401).json({ error: 'Auth required' });
     
     try {
