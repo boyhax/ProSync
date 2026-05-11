@@ -4,24 +4,17 @@ import {
   Award,
   Bell,
   Briefcase,
-  CheckCircle2,
   ChevronRight,
   FileText,
   FolderOpen,
   Hash,
-  Layers,
   Link as LinkIcon,
-  Lock,
-  Mail,
-  MapPin,
   Menu,
   MessageSquare,
-  MoreHorizontal,
   Plus,
   Search,
   ShieldCheck,
   Sparkles,
-  Trash2,
   TrendingUp,
   Trophy,
   User as UserIcon,
@@ -34,7 +27,6 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import Markdown from "react-markdown";
 import {
   Navigate,
   Route,
@@ -43,6 +35,12 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { AdminPanel } from "./components/AdminPanel";
+import { AuthPanel } from "./components/features/AuthPanel";
+import { EditPostModal } from "./components/features/EditPostModal";
+import { FileGallery } from "./components/features/FileGallery";
+import { JobsFeature } from "./components/features/JobsFeature";
+import { MarkdownEditor } from "./components/features/MarkdownEditor";
+import { PostCard } from "./components/features/PostCard";
 import { ProfilePanel } from "./components/ProfilePanel";
 import { SetupPage } from "./components/SetupPage";
 import { Avatar } from "./components/ui/Avatar";
@@ -51,457 +49,16 @@ import { Card } from "./components/ui/Card";
 import { cn } from "./lib/utils";
 import { geminiService } from "./services/aiClient";
 import * as api from "./services/api";
-import type{
-  Comment,
+import type {
   FileItem,
   Post,
   User
 } from "./types";
 
-// --- Views ---
-
-const stringId = (id: any) => {
-  if (!id) return "";
-  if (typeof id === "string" && id.includes(":")) return id.split(":")[1];
-  return id.toString();
-};
-
 const normalizeUserId = (id: string | number) => {
   const raw = String(id || "").trim();
   if (!raw) return "";
   return raw.includes(":") ? raw : `users:${raw}`;
-};
-
-const PostCard = ({
-  post,
-  onComment,
-  isExpanded,
-  currentUser,
-  onApply,
-  onRespond,
-  onSelectUser,
-  isUnfolded,
-  onUnfold,
-  onDelete,
-  onEdit,
-}: {
-  post: Post;
-  onComment: (postId: string | number) => void;
-  isExpanded?: boolean;
-  currentUser: User | null;
-  onApply: (postId: string | number) => void;
-  onRespond: (postId: string | number, type: "quiz" | "poll", index: number) => void;
-  onSelectUser: (userId: string | number) => void;
-  isUnfolded: boolean;
-  onUnfold: (postId: string | number | null) => void;
-  onDelete?: (postId: string | number) => void;
-  onEdit?: (postId: string | number, currentContent: string) => void;
-}) => {
-  const { t } = useTranslation();
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState("");
-  const [showQuizResult, setShowQuizResult] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-
-  const canManage = currentUser && (stringId(currentUser.id) === stringId(post.user_id) || currentUser.role === 'admin');
-
-  const handleDelete = async () => {
-    if (onDelete && post.id) {
-      setIsDeleting(true);
-      await onDelete(post.id);
-      setIsDeleting(false);
-      setIsConfirmingDelete(false);
-    }
-  };
-
-  const loadComments = async () => {
-    const data = await api.comments.list(post.id);
-    setComments(data);
-  };
-
-  useEffect(() => {
-    if (isExpanded) loadComments();
-  }, [isExpanded]);
-
-  const submitComment = async () => {
-    if (!newComment || !currentUser) return;
-    await api.comments.create(post.id, currentUser.id, newComment);
-    setNewComment("");
-    loadComments();
-  };
-
-  const isHiring = post?.content?.toLowerCase()?.includes("#hiring") || false;
-
-  return (
-    <Card className="mb-4">
-      <div className="p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div
-            className="cursor-pointer"
-            onClick={() => onSelectUser(post.user_id)}
-          >
-            <Avatar src={post.avatar_url} name={post.full_name} />
-          </div>
-          <div
-            className="cursor-pointer"
-            onClick={() => onSelectUser(post.user_id)}
-          >
-            <h4 className="font-semibold text-neutral-900 hover:underline">
-              {post.full_name}
-            </h4>
-            <p className="text-xs text-neutral-500">{post.headline}</p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-[10px] text-neutral-400 font-mono uppercase tracking-wider hidden sm:inline">
-              {post.created_at && isValid(new Date(post.created_at)) ? (
-                <>{formatDistanceToNow(new Date(post.created_at))} ago</>
-              ) : (
-                <>Just now</>
-              )}
-            </span>
-
-            {canManage && (
-              <div className="relative">
-                <button
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="p-1 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-400 hover:text-black"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-
-                <AnimatePresence>
-                  {isMenuOpen && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setIsMenuOpen(false)}
-                      />
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                        className="absolute right-0 top-full mt-1 w-44 bg-white border border-neutral-200 rounded-xl shadow-xl z-20 overflow-hidden"
-                      >
-                        <button
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            onEdit?.(post.id, post.content);
-                          }}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-neutral-600 hover:bg-neutral-50 transition-colors"
-                        >
-                          <FileText className="w-3 h-3" />
-                          Edit Post
-                        </button>
-                        <button
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            setIsConfirmingDelete(true);
-                          }}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          Delete Post
-                        </button>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <AnimatePresence>
-          {isConfirmingDelete && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4"
-              >
-                <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center">
-                  <Trash2 className="w-6 h-6 text-red-500" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black tracking-tight">Delete Post?</h3>
-                  <p className="text-sm text-neutral-500">This action cannot be undone. The post and its comments will be permanently removed.</p>
-                </div>
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 rounded-xl"
-                    onClick={() => setIsConfirmingDelete(false)}
-                    disabled={isDeleting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    className="flex-1 rounded-xl bg-red-500 hover:bg-red-600 text-white"
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? "Deleting..." : "Delete"}
-                  </Button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="prose prose-sm max-w-none text-neutral-700 mb-4">
-          <div className="markdown-body">
-            <Markdown>
-              {isUnfolded
-                ? post.content
-                : (post?.content?.length || 0) > 280
-                  ? post.content.substring(0, 280) + "..."
-                  : post.content}
-            </Markdown>
-          </div>
-          {(post?.content?.length || 0) > 280 && (
-            <button
-              onClick={() => onUnfold(isUnfolded ? null : post.id)}
-              className="text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-black mt-2 transition-colors flex items-center gap-1"
-            >
-              {isUnfolded ? "View less" : "Read more"}
-              <ArrowRight
-                className={cn(
-                  "w-3 h-3 transition-transform",
-                  isUnfolded ? "-rotate-90" : "rotate-0",
-                )}
-              />
-            </button>
-          )}
-        </div>
-
-        {post.poll_data && (
-          <div className="mb-4 bg-blue-50/20 border border-blue-50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Vote className="w-3.5 h-3.5 text-blue-500" />
-              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">
-                Career Poll
-              </span>
-            </div>
-            <p className="text-xs font-bold mb-3">
-              {(() => {
-                try {
-                  const data = typeof post.poll_data === 'string' ? JSON.parse(post.poll_data) : post.poll_data;
-                  return data?.question || "Poll";
-                } catch (e) {
-                  return "Poll";
-                }
-              })()}
-            </p>
-            <div className="space-y-2">
-              {(() => {
-                try {
-                  const data = typeof post.poll_data === 'string' ? JSON.parse(post.poll_data) : post.poll_data;
-                  if (!data?.options) return null;
-                  return data.options.map((opt: string, i: number) => {
-                    const stats =
-                      post.response_stats?.split(",").map((s: string) => s.split(":")) ||
-                      [];
-                    const votes = Number(
-                      stats.find((s: string[]) => s[0] === String(i))?.[1] || 0,
-                    );
-                    const total = stats.reduce(
-                      (acc: number, curr: string[]) => acc + Number(curr[1]),
-                      0,
-                    );
-                    const percent =
-                      total > 0 ? Math.round((votes / total) * 100) : 0;
-
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => onRespond(post.id, "poll", i)}
-                        className="w-full text-left p-2 rounded-lg bg-white border border-blue-100 hover:border-blue-400 text-xs transition-all relative overflow-hidden"
-                      >
-                        <div
-                          className="absolute inset-y-0 left-0 bg-blue-100/50 transition-all duration-1000"
-                          style={{ width: `${percent}%` }}
-                        />
-                        <div className="flex justify-between items-center relative z-10 w-full">
-                          <span className="font-medium">{opt}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-blue-400">
-                              {votes}
-                            </span>
-                            <span className="text-[10px] text-blue-600 font-bold">
-                              {percent}%
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  },
-                  );
-                } catch (e) {
-                  return null;
-                }
-              })()}
-            </div>
-          </div>
-        )}
-
-        {post.quiz_data && (
-          <div className="mb-4 bg-yellow-50/20 border border-yellow-50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Trophy className="w-3.5 h-3.5 text-yellow-500" />
-              <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">
-                Skill Quiz
-              </span>
-            </div>
-            <p className="text-xs font-bold mb-3">
-              {(() => {
-                try {
-                  const data = typeof post.quiz_data === 'string' ? JSON.parse(post.quiz_data) : post.quiz_data;
-                  return data?.question || "Quiz";
-                } catch (e) {
-                  return "Quiz";
-                }
-              })()}
-            </p>
-            <div className="space-y-2">
-              {(() => {
-                try {
-                  const quizData = typeof post.quiz_data === 'string' ? JSON.parse(post.quiz_data!) : post.quiz_data;
-                  if (!quizData?.options) return null;
-                  return quizData.options.map((opt: string, i: number) => {
-                    const isCorrect = quizData.correctIndex === i;
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => {
-                          onRespond(post.id, "quiz", i);
-                          setShowQuizResult(true);
-                        }}
-                        className={cn(
-                          "w-full text-left p-2 rounded-lg bg-white border border-yellow-100 text-xs transition-all",
-                          showQuizResult && isCorrect
-                            ? "bg-green-50 border-green-200 text-green-700 ring-1 ring-green-200"
-                            : showQuizResult && !isCorrect
-                              ? "opacity-40"
-                              : "hover:border-yellow-400",
-                        )}
-                      >
-                        <div className="flex justify-between items-center w-full">
-                          <span
-                            className={cn(
-                              showQuizResult && isCorrect && "font-bold",
-                            )}
-                          >
-                            {opt}
-                          </span>
-                          {showQuizResult && isCorrect && (
-                            <CheckCircle2 className="w-3 h-3 text-green-500" />
-                          )}
-                        </div>
-                      </button>
-                    );
-                  });
-                } catch (e) {
-                  return null;
-                }
-              })()}
-            </div>
-          </div>
-        )}
-
-        {post.attachment_type === "cv_item" && (
-          <div className="bg-neutral-50 border border-neutral-100 rounded-lg p-3 flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-neutral-500 border border-neutral-200">
-              <Briefcase className="w-4 h-4" />
-            </div>
-            <div className="flex-1">
-              <p className="text-xs font-semibold text-neutral-800">
-                Attached Professional Milestone
-              </p>
-              <p className="text-[10px] text-neutral-500">
-                This user and our nodes have verified this experience entry.
-              </p>
-            </div>
-            <CheckCircle2 className="w-4 h-4 text-green-500" />
-          </div>
-        )}
-
-        {isHiring && currentUser && post.user_id !== currentUser.id && (
-          <div className="mb-4 p-4 bg-black rounded-xl text-white flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest mb-1 italic">
-                {t("PostCard.opportunity_portal")}
-              </p>
-              <p className="text-[10px] opacity-70">
-                {t("PostCard.direct_sync")}
-              </p>
-            </div>
-            <Button
-              variant="secondary"
-              className="h-8 text-[10px] uppercase font-bold"
-              onClick={() => onApply(post.id)}
-            >
-              {t("PostCard.apply_now")}
-            </Button>
-          </div>
-        )}
-
-        <div className="flex items-center gap-4 pt-3 border-t border-neutral-100 mb-3">
-          <button
-            onClick={() => onComment(post.id)}
-            className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-black transition-colors"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>{post.comment_count} Comments</span>
-          </button>
-          <button className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-black transition-colors">
-            <Plus className="w-4 h-4" />
-            <span>Support</span>
-          </button>
-        </div>
-
-        {isExpanded && (
-          <div className="space-y-4 pt-4 border-t border-neutral-100">
-            {comments.map((c) => (
-              <div key={c.id} className="flex gap-3">
-                <Avatar src={c.avatar_url} name={c.full_name} size="sm" />
-                <div className="bg-neutral-50 rounded-lg p-2 flex-1">
-                  <p className="text-[10px] font-bold mb-1">{c.full_name}</p>
-                  <div className="markdown-body text-xs text-neutral-700">
-                    <Markdown>{c.content}</Markdown>
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Write a comment..."
-                className="flex-1 text-xs bg-neutral-100 border-none rounded-lg px-3 py-2"
-                onKeyDown={(e) => e.key === "Enter" && submitComment()}
-              />
-              <Button
-                variant="outline"
-                className="px-2 py-0"
-                onClick={submitComment}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </Card>
-  );
 };
 
 export default function App() {
@@ -943,6 +500,8 @@ export default function App() {
       const interval = setInterval(fetchConversations, 10000);
       return () => clearInterval(interval);
     }
+
+    return undefined;
   }, [currentUser]);
 
   useEffect(() => {
@@ -954,6 +513,8 @@ export default function App() {
       );
       return () => clearInterval(interval);
     }
+
+    return undefined;
   }, [activeChatUser]);
 
   const fetchSearch = async () => {
@@ -1210,6 +771,8 @@ export default function App() {
       }, 30000); // Poll every 30s
       return () => clearInterval(interval);
     }
+
+    return undefined;
   }, [currentUser]);
 
   const markAsRead = async (id: number) => {
@@ -1502,55 +1065,13 @@ export default function App() {
           path="/"
           element={
             <>
-              <AnimatePresence>
-                {editingPostId && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-                  >
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.9, opacity: 0 }}
-                      className="bg-white rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xl font-black tracking-tight">Edit Post</h3>
-                        <button
-                          onClick={() => setEditingPostId(null)}
-                          className="p-2 hover:bg-neutral-100 rounded-full transition-colors"
-                        >
-                          <X className="w-5 h-5 text-neutral-400" />
-                        </button>
-                      </div>
-                      <textarea
-                        value={editingPostContent}
-                        onChange={(e) => setEditingPostContent(e.target.value)}
-                        className="w-full h-40 bg-neutral-50 border border-neutral-100 rounded-2xl p-4 outline-none focus:border-black transition-all font-medium text-sm resize-none"
-                        placeholder="Write your update..."
-                      />
-                      <div className="flex gap-3 justify-end">
-                        <Button
-                          variant="ghost"
-                          className="rounded-xl px-6"
-                          onClick={() => setEditingPostId(null)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          className="rounded-xl px-10"
-                          onClick={handleUpdatePost}
-                          disabled={!editingPostContent.trim()}
-                        >
-                          Save Changes
-                        </Button>
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <EditPostModal
+                isOpen={Boolean(editingPostId)}
+                content={editingPostContent}
+                onContentChange={setEditingPostContent}
+                onClose={() => setEditingPostId(null)}
+                onSave={handleUpdatePost}
+              />
               {/* LEFT COLUMN: DISCOVER / SEARCH */}
               <AnimatePresence>
                 {isLeftOpen && (
@@ -2494,781 +2015,55 @@ export default function App() {
                         ))}
                       </div>
                     </div>
-                  ) : activeMainTab === "applicants" ? (
-                    <div className="space-y-6 animate-in fade-in duration-500">
-                      <header className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-xl font-bold tracking-tight">
-                            Applicant Portal
-                          </h2>
-                          <p className="text-xs text-neutral-500">
-                            Managing talent for Job ID: {selectedJobId}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            onClick={handleAiShortlistApplicants}
-                            disabled={isAiLoading}
-                            variant="outline"
-                            className="text-xs border-blue-200 text-blue-600 hover:bg-blue-50"
-                          >
-                            <Sparkles
-                              className={cn(
-                                "w-3 h-3 mr-2",
-                                isAiLoading && "animate-spin",
-                              )}
-                            />
-                            {t("App.ai_search")}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            onClick={() => setActiveMainTab("jobs")}
-                            className="text-xs"
-                          >
-                            Back to Jobs
-                          </Button>
-                        </div>
-                      </header>
-
-                      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-white border border-neutral-200 rounded-3xl p-4 shadow-sm">
-                        <div className="flex flex-wrap gap-2">
-                          {(["all", "pending", "shortlisted"] as const).map(
-                            (f) => (
-                              <button
-                                key={f}
-                                onClick={() => setApplicantFilter(f)}
-                                className={cn(
-                                  "px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all",
-                                  applicantFilter === f
-                                    ? "bg-black text-white shadow-sm"
-                                    : "bg-neutral-50 text-neutral-400 hover:bg-neutral-100",
-                                )}
-                              >
-                                {f}
-                              </button>
-                            ),
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2 w-full md:w-auto">
-                          <div className="relative flex-1 md:w-48">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-neutral-400" />
-                            <input
-                              type="text"
-                              placeholder="Search name..."
-                              value={applicantSearch}
-                              onChange={(e) =>
-                                setApplicantSearch(e.target.value)
-                              }
-                              className="w-full bg-neutral-50 border border-neutral-100 rounded-xl pl-8 pr-3 py-2 text-[10px] focus:ring-1 focus:ring-black outline-none"
-                            />
-                          </div>
-                          <select
-                            value={applicantTypeFilter}
-                            onChange={(e: any) =>
-                              setApplicantTypeFilter(e.target.value)
-                            }
-                            className="bg-neutral-50 border border-neutral-100 rounded-xl px-2 py-2 text-[10px] font-bold text-neutral-500 uppercase outline-none"
-                          >
-                            <option value="all">Any Proof</option>
-                            <option value="cv_item">CV Only</option>
-                            <option value="portfolio_item">
-                              Portfolio Only
-                            </option>
-                            <option value="none">No Proof</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        {applicants
-                          .filter((a) => {
-                            const matchesStatus =
-                              applicantFilter === "all" ||
-                              a.status === applicantFilter;
-                            const matchesSearch = (a.full_name || "")
-                              .toLowerCase()
-                              .includes((applicantSearch || "").toLowerCase());
-                            const matchesType =
-                              applicantTypeFilter === "all" ||
-                              a.attachment_type === applicantTypeFilter;
-                            return (
-                              matchesStatus && matchesSearch && matchesType
-                            );
-                          })
-                          .map((applicant) => (
-                            <Card
-                              key={applicant.id}
-                              className="p-4 flex items-center gap-4 hover:border-neutral-300 transition-colors group"
-                            >
-                              <Avatar
-                                src={applicant.avatar_url}
-                                name={applicant.full_name}
-                                className="ring-2 ring-offset-2 ring-transparent group-hover:ring-black/5 transition-all"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-bold text-sm truncate">
-                                    {applicant.full_name}
-                                  </h4>
-                                  {applicant.attachment_type !== "none" && (
-                                    <span className="bg-neutral-100 text-neutral-500 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                                      {applicant.attachment_type.replace(
-                                        "_",
-                                        " ",
-                                      )}{" "}
-                                      Attached
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[10px] text-neutral-500 truncate uppercase font-mono">
-                                  {applicant.headline}
-                                </p>
-                                {aiApplicantsFeedback?.find(
-                                  (f) => f.applicantId === applicant.user_id,
-                                ) && (
-                                    <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-lg animate-in fade-in zoom-in-95">
-                                      <div className="flex items-center justify-between mb-1">
-                                        <div className="flex items-center gap-1">
-                                          <Sparkles className="w-2.5 h-2.5 text-blue-500" />
-                                          <span className="text-[8px] font-bold text-blue-600 uppercase">
-                                            AI Analysis
-                                          </span>
-                                        </div>
-                                        <span
-                                          className={cn(
-                                            "text-[10px] font-bold",
-                                            (aiApplicantsFeedback.find(
-                                              (f) =>
-                                                f.applicantId ===
-                                                applicant.user_id,
-                                            )?.score || 0) > 80
-                                              ? "text-green-600"
-                                              : "text-blue-600",
-                                          )}
-                                        >
-                                          {
-                                            aiApplicantsFeedback.find(
-                                              (f) =>
-                                                f.applicantId ===
-                                                applicant.user_id,
-                                            )?.score
-                                          }
-                                          %
-                                        </span>
-                                      </div>
-                                      <p className="text-[9px] text-blue-800 line-clamp-2 italic">
-                                        {
-                                          aiApplicantsFeedback.find(
-                                            (f) =>
-                                              f.applicantId === applicant.user_id,
-                                          )?.reasoning
-                                        }
-                                      </p>
-                                    </div>
-                                  )}
-                              </div>
-                              <div className="flex gap-2">
-                                {applicant.status === "pending" && (
-                                  <Button
-                                    onClick={() =>
-                                      updateApplicantStatus(
-                                        applicant.id,
-                                        "shortlisted",
-                                      )
-                                    }
-                                    variant="outline"
-                                    className="h-8 text-[10px] font-bold border-neutral-200 hover:border-black transition-colors px-4"
-                                  >
-                                    Shortlist
-                                  </Button>
-                                )}
-                                {applicant.status === "shortlisted" && (
-                                  <span className="bg-black text-white px-3 py-1 rounded-xl text-[10px] font-bold flex items-center gap-2">
-                                    <CheckCircle2 className="w-3 h-3" />{" "}
-                                    Shortlisted
-                                  </span>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setSelectedUserId(applicant.user_id);
-                                    setIsRightOpen(true);
-                                    setActiveTab("profile");
-                                  }}
-                                  className="h-8 text-[10px] font-bold text-neutral-400 hover:text-black"
-                                >
-                                  Inspect Profile
-                                </Button>
-                              </div>
-                            </Card>
-                          ))}
-                      </div>
-                    </div>
                   ) : (
-                    <div className="space-y-6">
-                      {/* Job Alerts UI */}
-                      <div className="bg-gradient-to-br from-neutral-900 to-black rounded-3xl p-6 text-white shadow-xl overflow-hidden relative group">
-                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-                          <Bell className="w-24 h-24 rotate-12" />
-                        </div>
-                        <div className="relative z-10">
-                          <div className="flex justify-between items-start mb-6">
-                            <div>
-                              <h3 className="text-lg font-bold tracking-tight">
-                                Personalized Alerts
-                              </h3>
-                              <p className="text-[10px] text-neutral-400 font-mono uppercase tracking-[0.2em] mt-1">
-                                Real-time matching engine
-                              </p>
-                            </div>
-                            {!showJobAlertForm && (
-                              <Button
-                                onClick={() => setShowJobAlertForm(true)}
-                                className="bg-white text-black hover:bg-neutral-200 rounded-xl text-[10px] font-bold h-8 px-4"
-                              >
-                                Create Alert
-                              </Button>
-                            )}
-                          </div>
-
-                          {showJobAlertForm ? (
-                            <div className="space-y-4 bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 animate-in fade-in zoom-in-95 duration-300">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
-                                  New Alert Criteria
-                                </span>
-                                <button
-                                  onClick={() => setShowJobAlertForm(false)}
-                                  className="text-neutral-500 hover:text-white"
-                                >
-                                  <Plus className="w-4 h-4 rotate-45" />
-                                </button>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                  <label className="text-[8px] font-bold text-neutral-500 uppercase ml-1">
-                                    Keywords
-                                  </label>
-                                  <input
-                                    type="text"
-                                    placeholder="e.g. React, Python"
-                                    value={newJobAlert.keyword}
-                                    onChange={(e) =>
-                                      setNewJobAlert({
-                                        ...newJobAlert,
-                                        keyword: e.target.value,
-                                      })
-                                    }
-                                    className="w-full bg-white/10 border-none rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-white outline-none"
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-[8px] font-bold text-neutral-500 uppercase ml-1">
-                                    Location
-                                  </label>
-                                  <input
-                                    type="text"
-                                    placeholder="e.g. Remote, NY"
-                                    value={newJobAlert.location}
-                                    onChange={(e) =>
-                                      setNewJobAlert({
-                                        ...newJobAlert,
-                                        location: e.target.value,
-                                      })
-                                    }
-                                    className="w-full bg-white/10 border-none rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-white outline-none"
-                                  />
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[8px] font-bold text-neutral-500 uppercase ml-1">
-                                  Experience Level
-                                </label>
-                                <select
-                                  value={newJobAlert.experience_level}
-                                  onChange={(e) =>
-                                    setNewJobAlert({
-                                      ...newJobAlert,
-                                      experience_level: e.target.value,
-                                    })
-                                  }
-                                  className="w-full bg-white/10 border-none rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-white outline-none appearance-none"
-                                >
-                                  <option
-                                    value="all"
-                                    className="bg-neutral-900"
-                                  >
-                                    All Levels
-                                  </option>
-                                  <option
-                                    value="Junior"
-                                    className="bg-neutral-900"
-                                  >
-                                    Junior
-                                  </option>
-                                  <option
-                                    value="Mid"
-                                    className="bg-neutral-900"
-                                  >
-                                    Mid Level
-                                  </option>
-                                  <option
-                                    value="Senior"
-                                    className="bg-neutral-900"
-                                  >
-                                    Senior
-                                  </option>
-                                  <option
-                                    value="Lead"
-                                    className="bg-neutral-900"
-                                  >
-                                    Lead
-                                  </option>
-                                </select>
-                              </div>
-                              <Button
-                                onClick={createJobAlert}
-                                className="w-full bg-white text-black hover:bg-neutral-200 rounded-xl text-xs font-bold py-5"
-                              >
-                                Enable Pulse Alert
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                              {(jobAlerts?.length || 0) === 0 ? (
-                                <div className="text-[10px] text-neutral-500 italic py-2">
-                                  No active alerts. Add one to see real-time
-                                  matches.
-                                </div>
-                              ) : (
-                                jobAlerts?.map((alert) => (
-                                  <div
-                                    key={alert.id}
-                                    className="flex-shrink-0 bg-white/5 border border-white/10 p-3 rounded-2xl min-w-[140px] relative group/alert"
-                                  >
-                                    <button
-                                      onClick={() => deleteJobAlert(alert.id)}
-                                      className="absolute -top-1 -right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover/alert:opacity-100 transition-opacity"
-                                    >
-                                      <Plus className="w-2 h-2 rotate-45" />
-                                    </button>
-                                    <p className="text-[10px] font-bold truncate">
-                                      {alert.keyword || "All Topics"}
-                                    </p>
-                                    <div className="flex flex-wrap gap-1 mt-2">
-                                      <span className="text-[8px] px-1.5 py-0.5 bg-white/10 rounded uppercase font-mono">
-                                        {alert.experience_level}
-                                      </span>
-                                      {alert.location && (
-                                        <span className="text-[8px] px-1.5 py-0.5 bg-white/10 rounded uppercase font-mono">
-                                          {alert.location}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Oman Specific Filter Bar */}
-                      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
-                        <button
-                          onClick={() => setSelectedPlaceId("all")}
-                          className={cn(
-                            "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap border",
-                            selectedPlaceId === "all"
-                              ? "bg-black border-black text-white shadow-lg"
-                              : "bg-white border-neutral-100 text-neutral-400 hover:border-neutral-300",
-                          )}
-                        >
-                          All Oman
-                        </button>
-                        {places.map((place) => (
-                          <button
-                            key={place.id}
-                            onClick={() => setSelectedPlaceId(place.id)}
-                            className={cn(
-                              "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap border",
-                              selectedPlaceId === place.id
-                                ? "bg-black border-black text-white shadow-lg"
-                                : "bg-white border-neutral-100 text-neutral-400 hover:border-neutral-300",
-                            )}
-                          >
-                            {place.name}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Job Filters */}
-                      <div className="bg-white border border-neutral-200 rounded-2xl p-4 shadow-sm space-y-4">
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <select
-                              value={jobFilters.experience}
-                              onChange={(e) =>
-                                setJobFilters({
-                                  ...jobFilters,
-                                  experience: e.target.value,
-                                })
-                              }
-                              className="w-full px-3 py-2 text-xs bg-neutral-50 border border-neutral-100 rounded-xl outline-none"
-                            >
-                              <option value="all">Level: All</option>
-                              <option value="Junior">Junior</option>
-                              <option value="Mid">Mid Level</option>
-                              <option value="Senior">Senior</option>
-                              <option value="Lead">Lead</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4 py-1">
-                          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest whitespace-nowrap">
-                            Min Salary ($k)
-                          </span>
-                          <input
-                            type="range"
-                            min="0"
-                            max="300"
-                            step="10"
-                            value={jobFilters.minSalary || 0}
-                            onChange={(e) =>
-                              setJobFilters({
-                                ...jobFilters,
-                                minSalary: e.target.value,
-                              })
-                            }
-                            className="flex-1 accent-black h-1 bg-neutral-100 rounded-lg appearance-none cursor-pointer"
-                          />
-                          <span className="text-xs font-mono font-bold w-12 text-right">
-                            ${jobFilters.minSalary || 0}k
-                          </span>
-                        </div>
-                      </div>
-
-                      {(currentUser?.role === "company" || currentUser?.is_company_rep === 1) && (
-                        <div className="bg-white border border-neutral-200 rounded-2xl shadow-sm p-4">
-                          {!showJobForm ? (
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <h3 className="font-bold text-sm">
-                                  Post a New Job
-                                </h3>
-                                <p className="text-xs text-neutral-500">
-                                  Reach verified professionals in our network.
-                                </p>
-                              </div>
-                              <Button
-                                onClick={() => setShowJobForm(true)}
-                                className="rounded-xl text-xs"
-                              >
-                                Create Job
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-bold text-sm">
-                                  Job Details
-                                </h3>
-                                <Button
-                                  variant="ghost"
-                                  onClick={() => setShowJobForm(false)}
-                                  className="text-neutral-400 h-6 px-2"
-                                >
-                                  <Plus className="w-4 h-4 rotate-45" />
-                                </Button>
-                              </div>
-                              <input
-                                type="text"
-                                placeholder="Job Title (e.g. Senior Backend Engineer)"
-                                value={newJob.title}
-                                onChange={(e) =>
-                                  setNewJob({
-                                    ...newJob,
-                                    title: e.target.value,
-                                  })
-                                }
-                                className="w-full text-xs p-3 rounded-lg border border-neutral-200"
-                              />
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  placeholder="Location (e.g. Remote)"
-                                  value={newJob.location}
-                                  onChange={(e) =>
-                                    setNewJob({
-                                      ...newJob,
-                                      location: e.target.value,
-                                    })
-                                  }
-                                  className="w-2/5 text-xs p-3 rounded-lg border border-neutral-200"
-                                />
-                                <input
-                                  type="text"
-                                  placeholder="Salary (e.g. $120k - $150k)"
-                                  value={newJob.salary_range}
-                                  onChange={(e) =>
-                                    setNewJob({
-                                      ...newJob,
-                                      salary_range: e.target.value,
-                                    })
-                                  }
-                                  className="w-2/5 text-xs p-3 rounded-lg border border-neutral-200"
-                                />
-                                <select
-                                  value={newJob.experience_level}
-                                  onChange={(e) =>
-                                    setNewJob({
-                                      ...newJob,
-                                      experience_level: e.target.value,
-                                    })
-                                  }
-                                  className="w-1/5 text-xs p-3 rounded-lg border border-neutral-200 outline-none bg-white"
-                                >
-                                  <option value="Junior">Junior</option>
-                                  <option value="Mid">Mid</option>
-                                  <option value="Senior">Senior</option>
-                                  <option value="Lead">Lead</option>
-                                </select>
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[9px] font-bold text-neutral-400 uppercase ml-1">
-                                  Application Deadline
-                                </label>
-                                <input
-                                  type="date"
-                                  value={newJob.end_date}
-                                  onChange={(e) =>
-                                    setNewJob({
-                                      ...newJob,
-                                      end_date: e.target.value,
-                                    })
-                                  }
-                                  className="w-full text-xs p-3 rounded-lg border border-neutral-200"
-                                />
-                              </div>
-                              <textarea
-                                placeholder="Job Description & Requirements..."
-                                value={newJob.description}
-                                onChange={(e) =>
-                                  setNewJob({
-                                    ...newJob,
-                                    description: e.target.value,
-                                  })
-                                }
-                                className="w-full text-xs p-3 rounded-lg border border-neutral-200 min-h-[100px]"
-                              />
-                              <Button
-                                onClick={postJob}
-                                className="w-full rounded-xl"
-                                disabled={!newJob.title || !newJob.description}
-                              >
-                                Publish Job
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="space-y-4">
-                        {(jobs?.length || 0) === 0 ? (
-                          <div className="text-center py-20 text-neutral-400">
-                            No jobs match your criteria.
-                          </div>
-                        ) : (
-                          jobs?.map((job) => (
-                            <div
-                              key={job.id}
-                              className="bg-white border border-neutral-200 rounded-2xl p-5 hover:shadow-md transition-shadow"
-                            >
-                              <div className="flex justify-between items-start mb-4">
-                                <div>
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="font-bold text-lg">
-                                      {job.title}
-                                    </h3>
-                                    <span className="text-[9px] font-bold uppercase tracking-widest bg-black text-white px-1.5 py-0.5 rounded">
-                                      {job.experience_level}
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-3 text-xs text-neutral-500 font-mono">
-                                    <span className="flex items-center gap-1 bg-neutral-100 px-2 py-1 rounded-md">
-                                      <Briefcase className="w-3 h-3" />{" "}
-                                      {job.company_name}
-                                    </span>
-                                    <span className="flex items-center gap-1 bg-neutral-100 px-2 py-1 rounded-md">
-                                      <MapPin className="w-3 h-3" />{" "}
-                                      {job.location}
-                                    </span>
-                                    {job.salary_range && (
-                                      <span className="flex items-center gap-1 bg-neutral-100 px-2 py-1 rounded-md">
-                                        <TrendingUp className="w-3 h-3 text-green-600" />{" "}
-                                        {job.salary_range}
-                                      </span>
-                                    )}
-                                    {job.end_date &&
-                                      isValid(new Date(job.end_date)) && (
-                                        <span className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-1 rounded-md border border-red-100">
-                                          <Award className="w-3 h-3" /> Closes:{" "}
-                                          {new Date(
-                                            job.end_date,
-                                          ).toLocaleDateString()}
-                                        </span>
-                                      )}
-                                  </div>
-                                </div>
-                                <div className="flex flex-col items-end gap-2">
-                                  {currentUser?.id === job.user_id && (
-                                    <Button
-                                      onClick={() => fetchApplicants(job.id)}
-                                      variant="outline"
-                                      className="h-8 text-[10px] font-bold"
-                                    >
-                                      Applicants
-                                    </Button>
-                                  )}
-                                  {currentUser?.is_company_rep === 0 &&
-                                    (applyingToJobId === job.id ? (
-                                      <div className="bg-neutral-50 border border-neutral-100 p-3 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-1 duration-300">
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">
-                                          Attach Professional Insight
-                                        </p>
-                                        <div className="flex gap-2 mb-3">
-                                          <button
-                                            onClick={() =>
-                                              setAppAttachmentType(
-                                                appAttachmentType === "cv_item"
-                                                  ? "none"
-                                                  : "cv_item",
-                                              )
-                                            }
-                                            className={cn(
-                                              "p-2 rounded-lg border transition-all",
-                                              appAttachmentType === "cv_item"
-                                                ? "bg-black text-white border-black"
-                                                : "bg-white text-neutral-400 border-neutral-200",
-                                            )}
-                                            title="Attach CV Section"
-                                          >
-                                            <FileText className="w-4 h-4" />
-                                          </button>
-                                          <button
-                                            onClick={() =>
-                                              setAppAttachmentType(
-                                                appAttachmentType ===
-                                                  "portfolio_item"
-                                                  ? "none"
-                                                  : "portfolio_item",
-                                              )
-                                            }
-                                            className={cn(
-                                              "p-2 rounded-lg border transition-all",
-                                              appAttachmentType ===
-                                                "portfolio_item"
-                                                ? "bg-black text-white border-black"
-                                                : "bg-white text-neutral-400 border-neutral-200",
-                                            )}
-                                            title="Attach Portfolio Item"
-                                          >
-                                            <Layers className="w-4 h-4" />
-                                          </button>
-                                        </div>
-
-                                        {appAttachmentType === "cv_item" && (
-                                          <select
-                                            className="w-full text-[10px] bg-white border border-neutral-200 rounded-lg px-2 py-2 mb-3 outline-none"
-                                            onChange={(e) =>
-                                              setAppAttachmentId(e.target.value)
-                                            }
-                                          >
-                                            <option value="">
-                                              Select relevant experience...
-                                            </option>
-                                            {profileData?.cv?.map((item: any) => (
-                                              <option key={item.id} value={item.id}>
-                                                {item.title} at {item.subtitle}
-                                              </option>
-                                            ))}
-                                          </select>
-                                        )}
-
-                                        {appAttachmentType === "portfolio_item" && (
-                                          <select
-                                            className="w-full text-[10px] bg-white border border-neutral-200 rounded-lg px-2 py-2 mb-3 outline-none"
-                                            onChange={(e) =>
-                                              setAppAttachmentId(e.target.value)
-                                            }
-                                          >
-                                            <option value="">
-                                              Select relevant project...
-                                            </option>
-                                            {profileData?.portfolio?.map((item: any) => (
-                                              <option key={item.id} value={item.id}>
-                                                {item.title}
-                                              </option>
-                                            ))}
-                                          </select>
-                                        )}
-
-                                        <div className="flex gap-2">
-                                          <Button
-                                            onClick={applyToJob}
-                                            className="flex-1 rounded-lg text-[10px] h-8 font-bold"
-                                          >
-                                            Confirm
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            onClick={() =>
-                                              setApplyingToJobId(null)
-                                            }
-                                            className="rounded-lg text-[10px] h-8"
-                                          >
-                                            Cancel
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <Button
-                                        onClick={() =>
-                                          setApplyingToJobId(job.id)
-                                        }
-                                        className="rounded-xl text-xs font-bold shrink-0"
-                                      >
-                                        Apply
-                                      </Button>
-                                    ))}
-                                </div>
-                              </div>
-                              <div className="markdown-body text-sm text-neutral-700 mt-4 pt-4 border-t border-neutral-100">
-                                <Markdown>{job.description}</Markdown>
-                              </div>
-                              <div className="mt-4 pt-4 border-t border-neutral-100 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
-                                {job.created_at &&
-                                  isValid(new Date(job.created_at)) ? (
-                                  <span>
-                                    Posted{" "}
-                                    {formatDistanceToNow(
-                                      new Date(job.created_at),
-                                    )}{" "}
-                                    ago
-                                  </span>
-                                ) : (
-                                  <span>Recently posted</span>
-                                )}
-                                <span>
-                                  Job ID: {job.id.toString().padStart(6, "0")}
-                                </span>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
+                    <JobsFeature
+                      view={activeMainTab === "applicants" ? "applicants" : "jobs"}
+                      onViewChange={setActiveMainTab}
+                      selectedJobId={selectedJobId}
+                      isAiLoading={isAiLoading}
+                      onAiShortlistApplicants={handleAiShortlistApplicants}
+                      applicantFilter={applicantFilter}
+                      setApplicantFilter={setApplicantFilter}
+                      applicantSearch={applicantSearch}
+                      setApplicantSearch={setApplicantSearch}
+                      applicantTypeFilter={applicantTypeFilter}
+                      setApplicantTypeFilter={setApplicantTypeFilter}
+                      applicants={applicants}
+                      aiApplicantsFeedback={aiApplicantsFeedback}
+                      onUpdateApplicantStatus={updateApplicantStatus}
+                      onInspectApplicant={(userId) => {
+                        setSelectedUserId(userId);
+                        setIsRightOpen(true);
+                        setActiveTab("profile");
+                      }}
+                      jobAlerts={jobAlerts}
+                      showJobAlertForm={showJobAlertForm}
+                      setShowJobAlertForm={setShowJobAlertForm}
+                      newJobAlert={newJobAlert}
+                      setNewJobAlert={setNewJobAlert}
+                      onCreateJobAlert={createJobAlert}
+                      onDeleteJobAlert={deleteJobAlert}
+                      selectedPlaceId={selectedPlaceId}
+                      setSelectedPlaceId={setSelectedPlaceId}
+                      places={places}
+                      jobFilters={jobFilters}
+                      setJobFilters={setJobFilters}
+                      currentUser={currentUser}
+                      showJobForm={showJobForm}
+                      setShowJobForm={setShowJobForm}
+                      newJob={newJob}
+                      setNewJob={setNewJob}
+                      onPostJob={postJob}
+                      jobs={jobs}
+                      onFetchApplicants={fetchApplicants}
+                      applyingToJobId={applyingToJobId}
+                      setApplyingToJobId={setApplyingToJobId}
+                      appAttachmentType={appAttachmentType}
+                      setAppAttachmentType={setAppAttachmentType}
+                      setAppAttachmentId={setAppAttachmentId}
+                      profileData={profileData}
+                      onApplyToJob={applyToJob}
+                    />
                   )}
                 </div>
               </main>
@@ -3340,267 +2135,30 @@ export default function App() {
                   </div>
 
                   {!currentUser ? (
-                    <div className="flex-1 flex flex-col p-8 overflow-y-auto bg-white">
-                      <div className="flex justify-end items-center mb-6">
-                        <button
-                          onClick={() => setIsRightOpen(false)}
-                          className="lg:hidden text-neutral-300"
-                        >
-                          <Plus className="w-5 h-5 rotate-45" />
-                        </button>
-                      </div>
-
-                      <div className="flex justify-center mb-8">
-                        <div className="bg-black p-5 rounded-[28px] shadow-2xl shadow-black/20">
-                          <ShieldCheck className="w-10 h-10 text-white" />
-                        </div>
-                      </div>
-
-                      <h1 className="text-2xl font-black text-center mb-1 tracking-tight">
-                        ProSync Oman
-                      </h1>
-                      <p className="text-neutral-400 text-center mb-8 text-sm font-medium">
-                        {t("verified_network_oman")}
-                      </p>
-
-                      <div className="space-y-4 max-w-sm mx-auto w-full">
-                        {authStep === "email" && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="space-y-4"
-                          >
-                            <div className="relative group">
-                              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 group-focus-within:text-black transition-colors" />
-                              <input
-                                type="email"
-                                placeholder="example@work.om"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                onKeyDown={(e) =>
-                                  e.key === "Enter" && handleCheckEmail()
-                                }
-                                className="w-full pl-11 pr-4 py-4 bg-neutral-50 border border-neutral-100 rounded-2xl outline-none focus:border-black focus:ring-4 focus:ring-black/5 transition-all font-bold text-sm"
-                              />
-                            </div>
-                            <Button
-                              onClick={handleCheckEmail}
-                              disabled={isLoading}
-                              className="w-full h-14 bg-black text-white rounded-2xl font-black text-sm shadow-xl shadow-black/10 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                            >
-                              {isLoading ? (
-                                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                              ) : (
-                                "Continue"
-                              )}
-                              <ChevronRight className="w-4 h-4" />
-                            </Button>
-
-                            <div className="pt-2 text-center">
-                              <p className="text-[10px] font-bold text-neutral-400">
-                                {t("Auth.no_account") || "Don't have an account?"}{" "}
-                                <button
-                                  onClick={() => setAuthStep("register")}
-                                  className="text-black hover:underline cursor-pointer"
-                                >
-                                  {t("Auth.sign_up_now") || "Sign up now"}
-                                </button>
-                              </p>
-                            </div>
-                          </motion.div>
-                        )}
-
-                        {authStep === "password" && (
-                          <motion.div
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="space-y-4"
-                          >
-                            <button
-                              onClick={() => setAuthStep("email")}
-                              className="text-xs font-bold text-neutral-400 flex items-center gap-1 hover:text-black transition-colors"
-                            >
-                              <ChevronRight className="w-4 h-4 rotate-180" />{" "}
-                              Back to Email
-                            </button>
-                            <div className="p-3 bg-neutral-50 rounded-xl flex items-center gap-3 mb-2">
-                              <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-black">
-                                {email ? email[0].toUpperCase() : "?"}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
-                                  Logging in as
-                                </p>
-                                <p className="text-xs font-bold truncate">
-                                  {email}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="relative group">
-                              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 group-focus-within:text-black transition-colors" />
-                              <input
-                                type="password"
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                onKeyDown={(e) =>
-                                  e.key === "Enter" && handleLogin()
-                                }
-                                autoFocus
-                                className="w-full pl-11 pr-4 py-4 bg-neutral-50 border border-neutral-100 rounded-2xl outline-none focus:border-black focus:ring-4 focus:ring-black/5 transition-all font-bold text-sm"
-                              />
-                            </div>
-                            <div className="flex justify-end">
-                              <button
-                                onClick={handleForgotPassword}
-                                className="text-[10px] font-bold text-neutral-400 hover:text-black transition-colors"
-                              >
-                                {t("Auth.forgot_password")}
-                              </button>
-                            </div>
-                            <Button
-                              onClick={handleLogin}
-                              disabled={isLoading}
-                              className="w-full h-14 bg-black text-white rounded-2xl font-black text-sm shadow-xl shadow-black/10 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                            >
-                              {isLoading ? (
-                                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                              ) : (
-                                t("Auth.login")
-                              )}
-                            </Button>
-                          </motion.div>
-                        )}
-
-                        {authStep === "register" && (
-                          <motion.div
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="space-y-4"
-                          >
-                            <button
-                              onClick={() => setAuthStep("email")}
-                              className="text-xs font-bold text-neutral-400 flex items-center gap-1 hover:text-black transition-colors"
-                            >
-                              <ChevronRight className="w-4 h-4 rotate-180" />{" "}
-                              {t("Auth.back_to_email")}
-                            </button>
-                            <p className="text-xs font-bold text-neutral-500">
-                              {t("Auth.create_identity")}
-                            </p>
-                            <div className="space-y-3">
-                              <input
-                                type="text"
-                                placeholder={t("Auth.full_name")}
-                                value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
-                                className="w-full px-4 py-4 bg-neutral-50 border border-neutral-100 rounded-2xl outline-none focus:border-black transition-all font-bold text-sm"
-                              />
-                              <input
-                                type="email"
-                                placeholder={t("Auth.email") || "Email Address"}
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-4 bg-neutral-50 border border-neutral-100 rounded-2xl outline-none focus:border-black transition-all font-bold text-sm"
-                              />
-                              <input
-                                type="password"
-                                placeholder={t("Auth.password")}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-4 bg-neutral-50 border border-neutral-100 rounded-2xl outline-none focus:border-black transition-all font-bold text-sm"
-                              />
-                            </div>
-                            <Button
-                              onClick={handleRegister}
-                              disabled={isLoading}
-                              className="w-full h-14 bg-black text-white rounded-2xl font-black text-sm shadow-xl shadow-black/10 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                            >
-                              {isLoading ? (
-                                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                              ) : (
-                                t("Auth.join_network")
-                              )}
-                            </Button>
-                          </motion.div>
-                        )}
-
-                        {authStep === "verify" && (
-                          <motion.div
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="space-y-4"
-                          >
-                            <div className="text-center">
-                              <p className="text-xs font-bold text-neutral-500">
-                                {t("Auth.otp_verification")}
-                              </p>
-                              <p className="text-[10px] text-neutral-400">
-                                {t("Auth.otp_sent")} {email}
-                              </p>
-                            </div>
-                            <input
-                              type="text"
-                              placeholder="0 0 0 0 0 0"
-                              maxLength={6}
-                              value={otp}
-                              onChange={(e) =>
-                                setOtp(e.target.value.replace(/\D/g, ""))
-                              }
-                              className="w-full px-4 py-5 bg-neutral-50 border border-neutral-100 rounded-2xl outline-none focus:border-black text-center font-mono font-black text-2xl tracking-[0.5em]"
-                            />
-                            {debugOtp && (
-                              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-[10px] text-amber-700 font-mono text-center">
-                                DEBUG OTP: {debugOtp}
-                              </div>
-                            )}
-                            <Button
-                              onClick={handleVerifyOtp}
-                              disabled={isLoading || (otp?.length || 0) < 6}
-                              className="w-full h-14 bg-black text-white rounded-2xl font-black text-sm transition-all"
-                            >
-                              {isLoading ? t("Auth.verifying") : t("Auth.verify_otp")}
-                            </Button>
-                          </motion.div>
-                        )}
-
-                        {authStep === "new_pass" && (
-                          <motion.div
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="space-y-4"
-                          >
-                            <p className="text-xs font-bold text-neutral-500 text-center">
-                              {t("Auth.set_new_password")}
-                            </p>
-                            <input
-                              type="password"
-                              placeholder={t("Auth.password")}
-                              value={newPassword}
-                              onChange={(e) => setNewPassword(e.target.value)}
-                              className="w-full px-4 py-4 bg-neutral-50 border border-neutral-100 rounded-2xl outline-none focus:border-black transition-all font-bold text-sm"
-                            />
-                            <Button
-                              onClick={handleResetPassword}
-                              disabled={isLoading}
-                              className="w-full h-14 bg-black text-white rounded-2xl font-black text-sm transition-all"
-                            >
-                              {isLoading ? t("Auth.resetting") : t("Auth.reset_password")}
-                            </Button>
-                          </motion.div>
-                        )}
-
-                        {error && (
-                          <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="text-[10px] text-red-500 font-bold bg-red-50 p-3 rounded-xl border border-red-100 text-center"
-                          >
-                            {error}
-                          </motion.p>
-                        )}
-                      </div>
-                    </div>
+                    <AuthPanel
+                      authStep={authStep}
+                      email={email}
+                      password={password}
+                      fullName={fullName}
+                      otp={otp}
+                      newPassword={newPassword}
+                      isLoading={isLoading}
+                      debugOtp={debugOtp}
+                      error={error}
+                      onClose={() => setIsRightOpen(false)}
+                      setAuthStep={setAuthStep}
+                      setEmail={setEmail}
+                      setPassword={setPassword}
+                      setFullName={setFullName}
+                      setOtp={setOtp}
+                      setNewPassword={setNewPassword}
+                      onCheckEmail={handleCheckEmail}
+                      onLogin={handleLogin}
+                      onRegister={handleRegister}
+                      onForgotPassword={handleForgotPassword}
+                      onVerifyOtp={handleVerifyOtp}
+                      onResetPassword={handleResetPassword}
+                    />
                   ) : (
                     <>
                       {/* TAB BAR */}
@@ -3889,113 +2447,115 @@ export default function App() {
                           </div>
                         ) : (
                           <div className="space-y-6">
-                              {isEditingProfile ? (
-                                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                                  <header className="flex flex-col items-center text-center mb-8">
-                                    <Avatar
-                                      src={profileData.avatar_url}
-                                      name={profileData.full_name}
-                                      size="lg"
+                            {isEditingProfile ? (
+                              <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                                <header className="flex flex-col items-center text-center mb-8">
+                                  <Avatar
+                                    src={profileData.avatar_url}
+                                    name={profileData.full_name}
+                                    size="lg"
+                                  />
+                                  <h2 className="text-xl font-bold mt-4">
+                                    Modify Synapse Node
+                                  </h2>
+                                </header>
+                                <div className="space-y-4">
+                                  <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-neutral-400 ml-1">
+                                      Identity Headline
+                                    </label>
+                                    <input
+                                      className="w-full bg-neutral-50 border border-neutral-200 rounded-2xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-black outline-none transition-all"
+                                      value={profileForm.headline}
+                                      onChange={(e) =>
+                                        setProfileForm({
+                                          ...profileForm,
+                                          headline: e.target.value,
+                                        })
+                                      }
+                                      placeholder="e.g. Senior Product Designer"
                                     />
-                                    <h2 className="text-xl font-bold mt-4">
-                                      Modify Synapse Node
-                                    </h2>
-                                  </header>
-                                  <div className="space-y-4">
-                                    <div className="space-y-2">
-                                      <label className="text-[10px] font-black uppercase text-neutral-400 ml-1">
-                                        Identity Headline
-                                      </label>
-                                      <input
-                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-2xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-black outline-none transition-all"
-                                        value={profileForm.headline}
-                                        onChange={(e) =>
-                                          setProfileForm({
-                                            ...profileForm,
-                                            headline: e.target.value,
-                                          })
-                                        }
-                                        placeholder="e.g. Senior Product Designer"
-                                      />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <label className="text-[10px] font-black uppercase text-neutral-400 ml-1">
-                                        Neural Bio
-                                      </label>
-                                      <textarea
-                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-2xl px-4 py-3 text-xs min-h-[120px] focus:ring-2 focus:ring-black outline-none transition-all"
-                                        value={profileForm.bio}
-                                        onChange={(e) =>
-                                          setProfileForm({
-                                            ...profileForm,
-                                            bio: e.target.value,
-                                          })
-                                        }
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-neutral-400 ml-1">
+                                      Neural Bio
+                                    </label>
+                                    <MarkdownEditor.Root
+                                      content={profileForm.bio}
+                                      onChange={(v) =>
+                                        setProfileForm({ ...profileForm, bio: v })
+                                      }
+                                    >
+                                      <MarkdownEditor.ModeToggle className="mb-2" />
+                                      <MarkdownEditor.Auto
                                         placeholder="Describe your capabilities..."
+                                        minHeightClass="min-h-[120px]"
+                                        textAreaClassName="text-xs"
                                       />
-                                    </div>
-                                    <div className="flex gap-2 pt-4">
-                                      <Button
-                                        className="flex-1 h-12 rounded-2xl text-[10px] uppercase font-black tracking-widest"
-                                        onClick={updateProfile}
-                                      >
-                                        Lock Changes
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        className="h-12 rounded-2xl text-[10px] uppercase font-black tracking-widest"
-                                        onClick={() =>
-                                          setIsEditingProfile(false)
-                                        }
-                                      >
-                                        Abort
-                                      </Button>
-                                    </div>
+                                    </MarkdownEditor.Root>
+                                  </div>
+                                  <div className="flex gap-2 pt-4">
+                                    <Button
+                                      className="flex-1 h-12 rounded-2xl text-[10px] uppercase font-black tracking-widest"
+                                      onClick={updateProfile}
+                                    >
+                                      Lock Changes
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      className="h-12 rounded-2xl text-[10px] uppercase font-black tracking-widest"
+                                      onClick={() =>
+                                        setIsEditingProfile(false)
+                                      }
+                                    >
+                                      Abort
+                                    </Button>
                                   </div>
                                 </div>
-                              ) : (
-                                <ProfilePanel
-                                  profileData={profileData}
-                                  currentUser={currentUser}
-                                  isConnected={isConnected}
-                                  onEdit={() => {
-                                    if (profileData) {
-                                      setProfileForm({
-                                        headline: profileData.headline || "",
-                                        bio: profileData.bio || "",
-                                        avatar_url:
-                                          profileData.avatar_url || "",
-                                        company_name:
-                                          profileData.company_name || "",
-                                        company_description:
-                                          profileData.company_description || "",
-                                        company_website:
-                                          profileData.company_website || "",
-                                      });
-                                      setIsEditingProfile(true);
-                                    }
-                                  }}
-                                  onLogout={logout}
-                                  onNavigateToAdmin={() => {
-                                    navigate("/admin");
-                                    setIsRightOpen(false);
-                                  }}
-                                  onSelectUserId={(id) => setSelectedUserId(id)}
-                                  onRequestSync={(id) =>
-                                    handleToggleConnection(id)
+                              </div>
+                            ) : (
+                              <ProfilePanel
+                                profileData={profileData}
+                                currentUser={currentUser}
+                                isConnected={isConnected}
+                                onEdit={() => {
+                                  if (profileData) {
+                                    setProfileForm({
+                                      headline: profileData.headline || "",
+                                      bio: profileData.bio || "",
+                                      avatar_url:
+                                        profileData.avatar_url || "",
+                                      company_name:
+                                        profileData.company_name || "",
+                                      company_description:
+                                        profileData.company_description || "",
+                                      company_website:
+                                        profileData.company_website || "",
+                                    });
+                                    setIsEditingProfile(true);
                                   }
-                                  onMessage={(user) => {
-                                    setActiveTab("messages");
-                                    setActiveChatUser(user);
-                                  }}
-                                  onAddCVItem={addCVItem}
-                                  onAddSkill={addSkill}
-                                  onAddPortfolioItem={addPortfolioItem}
-                                  onVerifySkill={verifySkill}
-                                  onAiEditBio={handleAiBio}
-                                />
-                              )}
-                            </div>
+                                }}
+                                onLogout={logout}
+                                onNavigateToAdmin={() => {
+                                  navigate("/admin");
+                                  setIsRightOpen(false);
+                                }}
+                                onSelectUserId={(id) => setSelectedUserId(id)}
+                                onRequestSync={(id) =>
+                                  handleToggleConnection(id)
+                                }
+                                onMessage={(user) => {
+                                  setActiveTab("messages");
+                                  setActiveChatUser(user);
+                                }}
+                                onAddCVItem={addCVItem}
+                                onAddSkill={addSkill}
+                                onAddPortfolioItem={addPortfolioItem}
+                                onVerifySkill={verifySkill}
+                                onAiEditBio={handleAiBio}
+                              />
+                            )}
+                          </div>
                         )}
                       </div>
                     </>
@@ -4073,153 +2633,3 @@ export default function App() {
   );
 }
 
-const FileGallery = ({
-  files,
-  onSelect,
-  onClose,
-  onUpload,
-  onDelete,
-  galleryFilter,
-  setGalleryFilter,
-}: {
-  files: FileItem[];
-  onSelect: (file: FileItem) => void;
-  onClose: () => void;
-  onUpload: (name: string, url: string, type: string, purpose: string) => void;
-  onDelete: (id: string | number) => void;
-  galleryFilter: string;
-  setGalleryFilter: (f: string) => void;
-}) => {
-  const filteredFiles =
-    galleryFilter === "all"
-      ? files
-      : files.filter((f) => f.purpose === galleryFilter);
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-      >
-        <header className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight">
-              Professional Asset Gallery
-            </h2>
-            <p className="text-xs text-neutral-500">
-              Manage your verified files and career artifacts
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white rounded-full transition-colors border border-neutral-200"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </header>
-
-        <div className="p-6 flex flex-col gap-6 overflow-hidden">
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            <div className="flex gap-2 p-1 bg-neutral-100 rounded-xl overflow-x-auto scrollbar-hide">
-              {["all", "cv_item", "portfolio_item", "other"].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setGalleryFilter(f)}
-                  className={cn(
-                    "px-4 py-1.5 text-[10px] font-bold rounded-lg uppercase tracking-widest transition-all whitespace-nowrap",
-                    galleryFilter === f
-                      ? "bg-white text-black shadow-sm"
-                      : "text-neutral-400 hover:text-neutral-600",
-                  )}
-                >
-                  {f.replace("_", " ")}
-                </button>
-              ))}
-            </div>
-
-            <label className="bg-black text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:bg-neutral-800 transition-colors shrink-0">
-              <Plus className="w-3 h-3 inline mr-2" /> Upload New
-              <input
-                type="file"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const url = URL.createObjectURL(file);
-                    onUpload(
-                      file.name,
-                      url,
-                      file.type,
-                      galleryFilter === "all" ? "other" : galleryFilter,
-                    );
-                  }
-                }}
-              />
-            </label>
-          </div>
-
-          <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-4 min-h-[300px] pb-10 scrollbar-hide">
-            {(filteredFiles?.length || 0) === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center text-neutral-400 gap-3 py-20">
-                <FolderOpen className="w-12 h-12 opacity-20" />
-                <p className="text-xs font-medium">
-                  No assets found in this category
-                </p>
-              </div>
-            ) : (
-              filteredFiles.map((file) => (
-                <div
-                  key={file.id}
-                  className="group relative bg-neutral-50 border border-neutral-200 rounded-2xl p-4 hover:border-black transition-all cursor-pointer"
-                  onClick={() => onSelect(file)}
-                >
-                  <div className="aspect-square bg-white rounded-xl mb-3 flex items-center justify-center border border-neutral-100 group-hover:shadow-md transition-all">
-                    {file.type?.startsWith("image/") ? (
-                      <img
-                        src={file.url}
-                        alt={file.name}
-                        className="w-full h-full object-cover rounded-xl"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center gap-1">
-                        <FileText className="w-8 h-8 text-neutral-200" />
-                        <span className="text-[8px] font-mono text-neutral-400 uppercase">
-                          {file.type.split("/")[1] || "FILE"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-[10px] font-bold truncate mb-1">
-                    {file.name}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[8px] font-bold text-neutral-400 uppercase tracking-widest">
-                      {file.purpose.replace("_", " ")}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(file.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <footer className="p-6 bg-neutral-50/50 border-t border-neutral-100">
-          <p className="text-[8px] text-neutral-400 font-bold uppercase tracking-[0.2em] text-center">
-            Your files are stored securely and verified by ProSync
-          </p>
-        </footer>
-      </motion.div>
-    </div>
-  );
-};

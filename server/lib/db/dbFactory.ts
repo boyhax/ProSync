@@ -17,9 +17,37 @@ async function createConnection(): Promise<{ db: Surreal; adapter: IDBAdapter }>
   try {
     await db.connect(url);
 
-    // SurrealDB v2: signin must come BEFORE use()
     if (user && pass) {
-      await db.signin({ username: user, password: pass });
+      let signedIn = false;
+      let rootSignInError: unknown;
+
+      // Strategy 1: root / namespace owner style credentials.
+      try {
+        await db.signin({ username: user, password: pass });
+        signedIn = true;
+      } catch (err) {
+        rootSignInError = err;
+      }
+
+      // Strategy 2: namespaced database user credentials.
+      if (!signedIn) {
+        await db.use({ namespace: ns, database });
+        try {
+          await db.signin({
+            namespace: ns,
+            database,
+            username: user,
+            password: pass,
+          } as any);
+          signedIn = true;
+        } catch (dbUserErr) {
+          const rootMsg = rootSignInError instanceof Error ? rootSignInError.message : String(rootSignInError || 'unknown');
+          const dbUserMsg = dbUserErr instanceof Error ? dbUserErr.message : String(dbUserErr || 'unknown');
+          throw new Error(
+            `Surreal authentication failed for both root and database user modes. Root error: ${rootMsg}. DB user error: ${dbUserMsg}`,
+          );
+        }
+      }
     }
 
     await db.use({ namespace: ns, database });
