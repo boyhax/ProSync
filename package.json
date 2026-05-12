@@ -5,13 +5,9 @@
   "type": "module",
   "scripts": {
 <<<<<<< HEAD
-<<<<<<< HEAD
-    "dev": "tsx api/index.ts",
-    "build": "vite build",
-    "preview": "vite preview",
-=======
-    "dev": "vite --port 3000 --host",
-    "build": "vite build",
+    "dev": "vite",
+    "build": "vite build && nitropack build",
+    "start": "node .output/server/index.mjs",
 =======
     "dev": "vite --port 3000 --host",
     "build": "vite build",
@@ -19,13 +15,11 @@
     "deploy": "bun run build && wrangler deploy",
     "preview": "nitro preview",
     "clean": "rm -rf dist",
->>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
+>>>>>>> nitro
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist .output .nitro"
   },
   "dependencies": {
-<<<<<<< HEAD
-<<<<<<< HEAD
 <<<<<<< HEAD
     "@analogjs/vite-plugin-nitro": "^2.5.0",
     "@google/genai": "^1.51.0",
@@ -37,28 +31,17 @@
     "@vitejs/plugin-react": "^5.0.4",
     "babel-plugin-react-compiler": "^19.0.0-beta-af1b7da-20250417",
 =======
-=======
-    "@casl/ability": "^6.7.3",
->>>>>>> 51adbfa (feat: add JobsFeature component for job and applicant management)
-    "@google/genai": "^1.52.0",
-    "@google/generative-ai": "^0.24.1",
-    "@tailwindcss/vite": "^4.3.0",
-    "@vitejs/plugin-react": "^5.2.0",
-    "babel-plugin-react-compiler": "^19.0.0-beta-ebf51a3-20250411",
->>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
-=======
     "@casl/ability": "^6.7.3",
     "@google/genai": "^1.52.0",
     "@google/generative-ai": "^0.24.1",
     "@tailwindcss/vite": "^4.3.0",
     "@vitejs/plugin-react": "^5.2.0",
     "babel-plugin-react-compiler": "^19.0.0-beta-ebf51a3-20250411",
->>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+>>>>>>> nitro
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "concurrently": "^9.2.1",
     "date-fns": "^4.1.0",
-<<<<<<< HEAD
 <<<<<<< HEAD
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
@@ -133,9 +116,6 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.3",
     "vite": "^8.0.12"
-<<<<<<< HEAD
->>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
-=======
->>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+>>>>>>> nitro
   }
 }

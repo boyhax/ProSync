@@ -1,14 +1,21 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
 import React, { useState, useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { motion, AnimatePresence } from "motion/react";
 =======
 import { formatDistanceToNow, isValid } from "date-fns";
+<<<<<<< HEAD
 >>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
 =======
 import { formatDistanceToNow, isValid } from "date-fns";
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> nitro
+>>>>>>> main
 import {
   ArrowRight,
   Award,
@@ -68,6 +75,9 @@ import type {
 } from "./types";
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
 import { geminiService } from "./services/geminiService";
 import { formatDistanceToNow, isValid } from "date-fns";
 import Markdown from "react-markdown";
@@ -520,7 +530,16 @@ const PostCard = ({
     </Card>
   );
 =======
+<<<<<<< HEAD
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+
+const normalizeUserId = (id: string | number) => {
+  const raw = String(id || "").trim();
+  if (!raw) return "";
+  return raw.includes(":") ? raw : `users:${raw}`;
+>>>>>>> nitro
+>>>>>>> main
 };
 
 =======
@@ -891,14 +910,21 @@ export default function App() {
     try {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
       const url = currentUser ? `/api/topics?userId=${currentUser.id}` : "/api/topics";
       const data = await fetchAPI(url);
 =======
       const data = await api.topics.list();
+<<<<<<< HEAD
 >>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
 =======
       const data = await api.topics.list();
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> nitro
+>>>>>>> main
       setTopics(data);
     } catch (err) {
       console.error(err);
@@ -910,6 +936,7 @@ export default function App() {
     try {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       const data = await fetchAPI(`/api/topics/followed/${currentUser.id}`);
       if (data) setFollowedTopics(data);
 =======
@@ -918,6 +945,14 @@ export default function App() {
       const data = await api.setup.status();
       setIsSetupNeeded(!data.initialized);
 >>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
+=======
+      const data = await fetchAPI(`/api/topics/followed/${currentUser.id}`);
+      if (data) setFollowedTopics(data);
+=======
+      const data = await api.setup.status();
+      setIsSetupNeeded(!data.initialized);
+>>>>>>> nitro
+>>>>>>> main
     } catch (err) {
       console.error(err);
     }
@@ -1066,15 +1101,22 @@ export default function App() {
     try {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
       const data = await fetchAPI(
         `/api/search?q=${debouncedSearchQuery}&type=${searchType || "all"}`,
       );
 =======
       const data = await api.search.all(searchQuery, searchType || 'all');
+<<<<<<< HEAD
 >>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
 =======
       const data = await api.search.all(searchQuery, searchType || 'all');
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> nitro
+>>>>>>> main
       setSearchResults(data);
       setPosts(data.posts || []);
       setJobs(data.jobs || []);
@@ -1168,6 +1210,7 @@ export default function App() {
     try {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       const data = await fetchAPI(`/api/candidates?skills=${debouncedSearchQuery}`);
 =======
       const data = await api.candidates.list(searchQuery);
@@ -1175,6 +1218,12 @@ export default function App() {
 =======
       const data = await api.candidates.list(searchQuery);
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+      const data = await fetchAPI(`/api/candidates?skills=${debouncedSearchQuery}`);
+=======
+      const data = await api.candidates.list(searchQuery);
+>>>>>>> nitro
+>>>>>>> main
       setCandidates(data);
     } catch (err) {
       console.error(err);
@@ -1194,6 +1243,9 @@ export default function App() {
     try {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
       const query = new URLSearchParams();
       const searchTerm = searchType === "jobs" ? debouncedSearchQuery : jobFilters.q;
       if (searchTerm) query.set("q", searchTerm);
@@ -1205,8 +1257,11 @@ export default function App() {
 
       const data = await fetchAPI(`/api/jobs?${query.toString()}`);
 =======
+<<<<<<< HEAD
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> main
       const data = await api.jobs.list({
         q: searchType === 'jobs' ? searchQuery : jobFilters.q,
         experience: jobFilters.experience,
@@ -1214,9 +1269,13 @@ export default function App() {
         placeId: selectedPlaceId !== 'all' ? selectedPlaceId.toString() : undefined,
       });
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> nitro
+>>>>>>> main
       setJobs(data);
     } catch (err) {
       console.error(err);
@@ -1412,6 +1471,9 @@ export default function App() {
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
   const handleAiMagicJob = async (instruction?: string) => {
     setIsAiLoading(true);
     try {
@@ -1431,8 +1493,11 @@ export default function App() {
     } finally {
       setIsAiLoading(false);
 =======
+<<<<<<< HEAD
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> main
   const handleAiBio = async (instruction: string) => {
     if (!currentUser) return;
     const newBio = await geminiService.magicBio(profileData?.bio || "", instruction);
@@ -1440,9 +1505,13 @@ export default function App() {
       await api.profile.update(currentUser.id, { bio: newBio });
       fetchProfile(currentUser.id);
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 3bb641c (feat: add AI bio editing feature and update deployment configuration)
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> nitro
+>>>>>>> main
     }
   };
 
@@ -1967,6 +2036,9 @@ export default function App() {
                           ) && (
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
                             <section>
                               <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">
                                 {t("App.organizations") || "Organizations"}
@@ -1986,8 +2058,11 @@ export default function App() {
                                     >
                                       <div className="relative">
 =======
+<<<<<<< HEAD
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> main
                               <section>
                                 <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">
                                   {t("App.organizations") || "Organizations"}
@@ -2048,9 +2123,13 @@ export default function App() {
                                         className="flex-shrink-0 w-32 flex flex-col items-center text-center group"
                                       >
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> nitro
+>>>>>>> main
                                         <Avatar
                                           src={u.avatar_url}
                                           name={u.full_name}
@@ -2058,6 +2137,9 @@ export default function App() {
                                         />
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
                                         <div className="absolute -bottom-1 -right-1 bg-black text-white p-1 rounded-full border border-white">
                                           <Briefcase className="w-2 h-2" />
                                         </div>
@@ -2111,8 +2193,11 @@ export default function App() {
                             </section>
                           )}
 =======
+<<<<<<< HEAD
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> main
                                         <p className="text-[10px] font-bold mt-2 truncate w-full">
                                           {u.full_name}
                                         </p>
@@ -2125,9 +2210,13 @@ export default function App() {
                               </section>
                             )}
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> nitro
+>>>>>>> main
                         </div>
                       )}
 
@@ -2746,6 +2835,9 @@ export default function App() {
                   ) : (
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
                     <div className="space-y-6">
                       {/* Job Alerts UI */}
                       <div className="bg-gradient-to-br from-neutral-900 to-black rounded-3xl p-6 text-white shadow-xl overflow-hidden relative group">
@@ -3465,8 +3557,11 @@ export default function App() {
                       </div>
                     </div>
 =======
+<<<<<<< HEAD
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> main
                     <JobsFeature
                       view={activeMainTab === "applicants" ? "applicants" : "jobs"}
                       onViewChange={setActiveMainTab}
@@ -3516,9 +3611,13 @@ export default function App() {
                       onApplyToJob={applyToJob}
                     />
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 660d252 (Update localization files for Arabic, English, and Spanish)
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> nitro
+>>>>>>> main
                   )}
                 </div>
               </main>

@@ -1,14 +1,20 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
 import { defineNitroConfig } from "nitropack/config";
 
 export default defineNitroConfig({
   compatibilityDate: "2024-04-03",
   srcDir: "server",
 =======
+<<<<<<< HEAD
 import { defineNitroConfig } from 'nitro/config';
 =======
+=======
+>>>>>>> main
 import { defineConfig } from "nitro";
 >>>>>>> 1abeaa1 (Refactor API interactions and enhance error handling)
 =======
@@ -26,7 +32,11 @@ export default defineConfig({
     },
   ],
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> d322979 (feat: Implement SurrealDB adapter and connection management)
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> nitro
+>>>>>>> main
 });

@@ -12,6 +12,7 @@ interface AdminPanelProps {
 export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'data' | 'system'>('analytics');
 =======
 =======
@@ -19,6 +20,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const ability = useMemo(() => defineAbilityFor(currentUser), [currentUser]);
   const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'system'>('analytics');
 >>>>>>> 51adbfa (feat: add JobsFeature component for job and applicant management)
+=======
+  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'data' | 'system'>('analytics');
+=======
+  const ability = useMemo(() => defineAbilityFor(currentUser), [currentUser]);
+  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'system'>('analytics');
+>>>>>>> nitro
+>>>>>>> main
   const [analytics, setAnalytics] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
@@ -33,6 +41,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     fetchUsers();
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
     if (activeTab === 'data') {
       fetchAdminContent();
     }
@@ -96,7 +107,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   };
 =======
   }, [ability]);
+<<<<<<< HEAD
 >>>>>>> 51adbfa (feat: add JobsFeature component for job and applicant management)
+=======
+>>>>>>> nitro
+>>>>>>> main
 
   const fetchAnalytics = async () => {
     if (!ability.can('read', 'Analytics')) return;

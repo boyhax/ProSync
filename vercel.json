@@ -1,6 +1,9 @@
 {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
   "version": 2,
   "rewrites": [
     {
@@ -9,14 +12,21 @@
     }
   ]
 =======
+<<<<<<< HEAD
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> main
   "framework": null,
   "installCommand": "bun install",
   "buildCommand": "bun run build",
   "bunVersion": "1.x"
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> d322979 (feat: Implement SurrealDB adapter and connection management)
 =======
 >>>>>>> 51adbfa5cad01e5a0eee6dfd6db4e0faeac2b97c
+=======
+>>>>>>> nitro
+>>>>>>> main
 }
