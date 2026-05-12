@@ -4,7 +4,6 @@ import {
   Award,
   Bell,
   Briefcase,
-  CheckCircle2,
   ChevronRight,
   FileText,
   FolderOpen,
@@ -26,7 +25,7 @@ import {
   X
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Navigate,
@@ -49,7 +48,7 @@ import { SetupPage } from "./components/SetupPage";
 import { Avatar } from "./components/ui/Avatar";
 import { Button } from "./components/ui/Button";
 import { Card } from "./components/ui/Card";
-import { cn, fetchAPI } from "./lib/utils";
+import { cn } from "./lib/utils";
 import { geminiService } from "./services/aiClient";
 import * as api from "./services/api";
 import type {
@@ -81,15 +80,6 @@ export default function App() {
   });
   const [posts, setPosts] = useState<Post[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
   const [selectedUserId, setSelectedUserId] = useState<string | number | null>(
     null,
   );
@@ -210,7 +200,6 @@ export default function App() {
   const [userFiles, setUserFiles] = useState<FileItem[]>([]);
   const [galleryFilter, setGalleryFilter] = useState<string>("all");
   const [topics, setTopics] = useState<string[]>([]);
-  const [followedTopics, setFollowedTopics] = useState<string[]>([]);
   const [places, setPlaces] = useState<any[]>([]);
   const [isSetupNeeded, setIsSetupNeeded] = useState(false);
   const [setupLoading, setSetupLoading] = useState(true);
@@ -238,22 +227,6 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugOtp, setDebugOtp] = useState<string | null>(null);
-
-  const parentRef = useRef<HTMLElement>(null);
-
-  const postVirtualizer = useVirtualizer({
-    count: posts.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 350,
-    overscan: 5,
-  });
-
-  const jobVirtualizer = useVirtualizer({
-    count: jobs.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 220,
-    overscan: 5,
-  });
 
   const handleCheckEmail = async () => {
     if (!email) return;
@@ -437,58 +410,32 @@ export default function App() {
     }
   };
 
-  const fetchFollowedTopics = async () => {
-    if (!currentUser) return;
+  const checkSetupStatus = async () => {
     try {
       const data = await api.setup.status();
       setIsSetupNeeded(!data.initialized);
     } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const toggleTopicFollow = async (topic: string) => {
-    if (!currentUser || typeof topic !== 'string') return;
-    const tName = topic.startsWith("#") ? topic.slice(1) : topic;
-    const isFollowed = followedTopics.includes(tName);
-    const endpoint = isFollowed ? "/api/topics/unfollow" : "/api/topics/follow";
-
-    try {
-      await fetchAPI(endpoint, {
-        method: "POST",
-        body: JSON.stringify({ user_id: currentUser.id, topic }),
-      });
-      fetchFollowedTopics();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const initApp = async () => {
-    try {
-      const data = await fetchAPI("/api/app-init");
-      setIsSetupNeeded(!data.setup.initialized);
-      setPlaces(data.places);
-      if (data.user) {
-        setCurrentUser(data.user);
-        setFollowedTopics(data.followedTopics);
-        setNotifications(data.notifications);
-        setConversations(data.conversations);
-        if (!selectedUserId) setSelectedUserId(data.user.id);
-        if (data.user.place_id && (selectedPlaceId === "all" || !selectedPlaceId)) {
-          setSelectedPlaceId(data.user.place_id);
-        }
-      }
-    } catch (err: any) {
-      console.error("App initialization failed", err);
-      setError("Sync connectivity issues. Please refresh.");
+      console.error("Setup check failed", err);
     } finally {
       setSetupLoading(false);
     }
   };
 
   useEffect(() => {
-    initApp();
+    checkSetupStatus();
+    checkSession();
+    fetchPlaces();
+    fetchTopics();
+    fetchRecommendations();
+    if (currentUser) {
+      if (!selectedUserId) setSelectedUserId(currentUser.id);
+      if (currentUser.place_id && selectedPlaceId === "all") {
+        setSelectedPlaceId(currentUser.place_id);
+      }
+      fetchFeed();
+      fetchConversations();
+      fetchNotifications();
+    }
 
     // Listen for storage events to sync across tabs
     const handleStorage = (e: StorageEvent) => {
@@ -506,14 +453,7 @@ export default function App() {
 
   useEffect(() => {
     fetchFeed();
-  }, [debouncedSearchQuery]);
-
-  useEffect(() => {
-    if (currentUser) {
-      fetchTopics();
-      fetchRecommendations();
-    }
-  }, [currentUser?.id]);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (selectedUserId) fetchProfile(selectedUserId);
@@ -521,7 +461,7 @@ export default function App() {
 
   useEffect(() => {
     fetchCandidates();
-  }, [debouncedSearchQuery]);
+  }, [searchQuery]);
 
   const fetchConversations = async () => {
     if (!currentUser) return;
@@ -582,7 +522,7 @@ export default function App() {
   }, [activeChatUser]);
 
   const fetchSearch = async () => {
-    if (!debouncedSearchQuery && !searchType) {
+    if (!searchQuery && !searchType) {
       fetchFeed();
       return;
     }
@@ -599,7 +539,7 @@ export default function App() {
 
   useEffect(() => {
     fetchSearch();
-  }, [debouncedSearchQuery, searchType]);
+  }, [searchQuery, searchType]);
 
   const fetchFeed = async () => {
     setLoading(true);
@@ -715,7 +655,7 @@ export default function App() {
     if (currentUser) {
       fetchJobs();
     }
-  }, [currentUser, jobFilters, debouncedSearchQuery, searchType]);
+  }, [currentUser, jobFilters, searchQuery, searchType]);
 
   const applyToJob = async () => {
     if (!currentUser || !applyingToJobId) return;
@@ -1113,7 +1053,7 @@ export default function App() {
   }
 
   if (isSetupNeeded) {
-    return <SetupPage onComplete={() => initApp()} />;
+    return <SetupPage onComplete={() => checkSetupStatus()} />;
   }
 
   return (
@@ -1185,37 +1125,20 @@ export default function App() {
                           {t("App.trending_pulse") || "Trending Pulse"}
                         </h3>
                         <div className="flex flex-wrap gap-2">
-                          {topics.map((topic) => {
-                            if (typeof topic !== 'string') return null;
-                            const tName = topic.startsWith('#') ? topic.slice(1) : topic;
-                            const isFollowed = followedTopics.includes(tName);
-                            
-                            return (
-                              <div key={topic} className="flex items-center gap-1">
-                                <button
-                                  onClick={() => {
-                                    setSearchQuery(topic);
-                                    setActiveMainTab("feed");
-                                    setIsLeftOpen(false);
-                                  }}
-                                  className="px-3 py-1.5 rounded-full text-[10px] font-bold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 transition-colors flex items-center gap-1.5 group"
-                                >
-                                  <span>{topic}</span>
-                                  <TrendingUp className="w-2.5 h-2.5 text-neutral-300 group-hover:text-green-500 transition-colors" />
-                                </button>
-                                <button
-                                  onClick={() => toggleTopicFollow(topic)}
-                                  className={cn(
-                                    "p-1.5 rounded-full transition-colors",
-                                    isFollowed ? "text-blue-500 bg-blue-50" : "text-neutral-300 hover:text-blue-500 hover:bg-blue-50"
-                                  )}
-                                  title={isFollowed ? "Unfollow" : "Follow"}
-                                >
-                                  {isFollowed ? <CheckCircle2 className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-                                </button>
-                              </div>
-                            );
-                          })}
+                          {topics.map((topic) => (
+                            <button
+                              key={topic}
+                              onClick={() => {
+                                setSearchQuery(topic);
+                                setActiveMainTab("feed");
+                                setIsLeftOpen(false);
+                              }}
+                              className="px-3 py-1.5 rounded-full text-[10px] font-bold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 transition-colors flex items-center gap-1.5 group"
+                            >
+                              <span>{topic}</span>
+                              <TrendingUp className="w-2.5 h-2.5 text-neutral-300 group-hover:text-green-500 transition-colors" />
+                            </button>
+                          ))}
                         </div>
                       </section>
 
@@ -1269,7 +1192,7 @@ export default function App() {
               </motion.aside>
 
               {/* CENTER COLUMN: THE FEED */}
-              <main ref={parentRef} className="flex-1 h-full overflow-y-auto bg-neutral-50 relative">
+              <main className="flex-1 h-full overflow-y-auto bg-neutral-50 relative">
                 <div className="max-w-2xl mx-auto px-4 pt-4 pb-8 md:pt-8 md:pb-12">
                   {/* Integrated Search Console */}
                   <div className="flex flex-col gap-3 mb-8">
@@ -1393,7 +1316,7 @@ export default function App() {
                                 {t("App.jobs") || "Jobs"}
                               </h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {searchResults.jobs?.map((j: any) => (
+                                {searchResults.jobs.map((j: any) => (
                                   <Card
                                     key={j.id}
                                     className="p-4 bg-white/50 backdrop-blur-sm border-dashed border-2"
@@ -1795,7 +1718,7 @@ export default function App() {
                                   }
                                 />
                                 <div className="space-y-2">
-                                  {postPoll.options?.map((opt, i) => (
+                                  {postPoll.options.map((opt, i) => (
                                     <div key={i} className="flex gap-2">
                                       <input
                                         type="text"
@@ -1873,7 +1796,7 @@ export default function App() {
                                   }
                                 />
                                 <div className="space-y-2">
-                                  {postQuiz.options?.map((opt, i) => (
+                                  {postQuiz.options.map((opt, i) => (
                                     <div
                                       key={i}
                                       className="flex gap-2 items-center"
@@ -1995,7 +1918,7 @@ export default function App() {
                                   {aiOptimizedPost.quiz.question}
                                 </p>
                                 <div className="space-y-1">
-                                  {aiOptimizedPost.quiz.options?.map(
+                                  {aiOptimizedPost.quiz.options.map(
                                     (opt: string, i: number) => (
                                       <div
                                         key={i}
@@ -2032,7 +1955,7 @@ export default function App() {
                                   {aiOptimizedPost.poll.question}
                                 </p>
                                 <div className="space-y-1">
-                                  {aiOptimizedPost.poll.options?.map(
+                                  {aiOptimizedPost.poll.options.map(
                                     (opt: string, i: number) => (
                                       <div
                                         key={i}
@@ -2068,50 +1991,31 @@ export default function App() {
                         </div>
                       )}
 
-                      <div
-                        style={{
-                          height: `${postVirtualizer.getTotalSize()}px`,
-                          width: "100%",
-                          position: "relative",
-                        }}
-                      >
-                        {postVirtualizer.getVirtualItems().map((virtualItem) => (
-                          <div
-                            key={virtualItem.key}
-                            data-index={virtualItem.index}
-                            ref={postVirtualizer.measureElement}
-                            style={{
-                              position: "absolute",
-                              top: 0,
-                              left: 0,
-                              width: "100%",
-                              transform: `translateY(${virtualItem.start}px)`,
+                      <div className="space-y-4">
+                        {posts?.map((post) => (
+                          <PostCard
+                            key={post.id}
+                            post={post}
+                            currentUser={currentUser}
+                            onApply={applyToJob}
+                            onDelete={handleDeletePost}
+                            onEdit={(id, content) => {
+                              setEditingPostId(id);
+                              setEditingPostContent(content);
                             }}
-                            className="pb-4"
-                          >
-                            <PostCard
-                              post={posts[virtualItem.index]}
-                              currentUser={currentUser}
-                              onApply={applyToJob}
-                              onDelete={handleDeletePost}
-                              onEdit={(id, content) => {
-                                setEditingPostId(id);
-                                setEditingPostContent(content);
-                              }}
-                              isExpanded={expandedPost === posts[virtualItem.index]?.id}
-                              onComment={(id) =>
-                                setExpandedPost(expandedPost === id ? null : id)
-                              }
-                              onRespond={handlePostResponse}
-                              onSelectUser={(id) => {
-                                setSelectedUserId(id);
-                                setActiveTab("profile");
-                                setIsRightOpen(true);
-                              }}
-                              isUnfolded={unfoldPostId === posts[virtualItem.index]?.id}
-                              onUnfold={setUnfoldPostId}
-                            />
-                          </div>
+                            isExpanded={expandedPost === post.id}
+                            onComment={(id) =>
+                              setExpandedPost(expandedPost === id ? null : id)
+                            }
+                            onRespond={handlePostResponse}
+                            onSelectUser={(id) => {
+                              setSelectedUserId(id);
+                              setActiveTab("profile");
+                              setIsRightOpen(true);
+                            }}
+                            isUnfolded={unfoldPostId === post.id}
+                            onUnfold={setUnfoldPostId}
+                          />
                         ))}
                       </div>
                     </div>
@@ -2464,11 +2368,9 @@ export default function App() {
                               </div>
                             ) : (
                               <div className="space-y-4">
-                                {notifications?.map((n) => {
-                                  if (!n) return null;
-                                  return (
-                                    <Card
-                                      key={n.id || Math.random()}
+                                {notifications?.map((n) => (
+                                  <Card
+                                    key={n.id}
                                     className={cn(
                                       "p-4 transition-all",
                                       !n.is_read
@@ -2484,7 +2386,7 @@ export default function App() {
                                             ? "bg-blue-50 text-blue-500"
                                             : n.type === "connection"
                                               ? "bg-purple-50 text-purple-500"
-                                              : (n.type && n.type.startsWith("job_"))
+                                              : n.type.startsWith("job_")
                                                 ? "bg-orange-50 text-orange-500"
                                                 : "bg-green-50 text-green-500",
                                         )}
@@ -2493,7 +2395,7 @@ export default function App() {
                                           <MessageSquare className="w-4 h-4" />
                                         ) : n.type === "connection" ? (
                                           <UserPlus className="w-4 h-4" />
-                                        ) : (n.type && n.type.startsWith("job_")) ? (
+                                        ) : n.type.startsWith("job_") ? (
                                           <Briefcase className="w-4 h-4" />
                                         ) : (
                                           <Award className="w-4 h-4" />
@@ -2525,9 +2427,8 @@ export default function App() {
                                         )}
                                       </div>
                                     </div>
-                                    </Card>
-                                  );
-                                })}
+                                  </Card>
+                                ))}
                               </div>
                             )}
                           </div>
