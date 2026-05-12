@@ -184,6 +184,8 @@ export default function App() {
 
   // AI States
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [bioAiInstruction, setBioAiInstruction] = useState("");
+  const [isBioAiLoading, setIsBioAiLoading] = useState(false);
   const [aiApplicantsFeedback, setAiApplicantsFeedback] = useState<
     any[] | null
   >(null);
@@ -2181,7 +2183,7 @@ export default function App() {
                           )}
                         >
                           <UserIcon className="w-3.5 h-3.5" />
-                          Identity
+                          {t("App.tab_identity")}
                         </button>
                         <button
                           onClick={() => setActiveTab("notifications")}
@@ -2193,7 +2195,7 @@ export default function App() {
                           )}
                         >
                           <Bell className="w-3.5 h-3.5" />
-                          Activity
+                          {t("App.tab_activity")}
                           {notifications.some((n) => !n.is_read) && (
                             <span className="absolute top-2 right-4 w-1.5 h-1.5 bg-red-500 rounded-full border border-white" />
                           )}
@@ -2208,7 +2210,7 @@ export default function App() {
                           )}
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
-                          Messages
+                          {t("App.tab_messages")}
                           {conversations.reduce(
                             (acc, c) => acc + (c.unread_count || 0),
                             0,
@@ -2224,7 +2226,7 @@ export default function App() {
                             {!activeChatUser ? (
                               <>
                                 <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-4">
-                                  Direct Syncs
+                                  {t("App.direct_syncs")}
                                 </h3>
                                 {(conversations?.length || 0) === 0 ? (
                                   <div className="text-center py-20 text-neutral-300 italic text-xs font-mono">
@@ -2304,7 +2306,7 @@ export default function App() {
                                 <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-neutral-50/30">
                                   {(chatMessages?.length || 0) === 0 ? (
                                     <div className="text-center py-10 text-neutral-400 italic text-xs font-mono">
-                                      No messages yet.
+                                      {t("App.no_messages")}
                                     </div>
                                   ) : (
                                     chatMessages?.map((msg) => (
@@ -2458,7 +2460,7 @@ export default function App() {
                                     size="lg"
                                   />
                                   <h2 className="text-xl font-bold mt-4">
-                                    Modify Synapse Node
+                                    Edit Profile
                                   </h2>
                                 </header>
                                 <div className="space-y-4">
@@ -2480,7 +2482,7 @@ export default function App() {
                                   </div>
                                   <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase text-neutral-400 ml-1">
-                                      Neural Bio
+                                      Bio
                                     </label>
                                     <MarkdownEditor.Root
                                       content={profileForm.bio}
@@ -2495,6 +2497,39 @@ export default function App() {
                                         textAreaClassName="text-xs"
                                       />
                                     </MarkdownEditor.Root>
+                                    {/* AI bio rewrite */}
+                                    <div className="flex items-center gap-1.5 pt-1">
+                                      <Sparkles className="w-3 h-3 text-purple-400" />
+                                      <span className="text-[9px] font-bold text-purple-400 uppercase tracking-widest">AI Rewrite</span>
+                                    </div>
+                                    <textarea
+                                      rows={2}
+                                      placeholder="e.g. Make it more concise and highlight my AI expertise..."
+                                      className="w-full bg-neutral-50 border border-purple-100 rounded-xl px-3 py-2 text-[11px] outline-none focus:border-purple-300 placeholder:text-neutral-300 text-purple-900 resize-none"
+                                      value={bioAiInstruction}
+                                      onChange={(e) => setBioAiInstruction(e.target.value)}
+                                    />
+                                    <button
+                                      onClick={async () => {
+                                        if (!bioAiInstruction) return;
+                                        setIsBioAiLoading(true);
+                                        try {
+                                          await handleAiBio(bioAiInstruction);
+                                          setBioAiInstruction("");
+                                        } finally {
+                                          setIsBioAiLoading(false);
+                                        }
+                                      }}
+                                      disabled={isBioAiLoading || !bioAiInstruction}
+                                      className="w-full flex items-center justify-center gap-1.5 bg-purple-500 text-white py-2 rounded-xl text-[10px] font-bold hover:bg-purple-600 transition-colors disabled:opacity-30"
+                                    >
+                                      {isBioAiLoading ? (
+                                        <Sparkles className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <ArrowRight className="w-3 h-3" />
+                                      )}
+                                      {isBioAiLoading ? "Rewriting..." : "Apply AI Rewrite"}
+                                    </button>
                                   </div>
                                   <div className="flex gap-2 pt-4">
                                     <Button
