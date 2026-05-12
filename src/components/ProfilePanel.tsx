@@ -20,9 +20,7 @@ import {
   AtSign,
   Trash2,
   LogOut,
-  Sparkles,
-  ArrowRight,
-  X,
+  Pencil,
 } from "lucide-react";
 import type { User, CVSection, Skill, PortfolioItem } from "../types";
 import { Button } from "./ui/Button";
@@ -76,9 +74,6 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
     null,
   );
   const [verificationUrlInput, setVerificationUrlInput] = useState("");
-  const [showBioAiPrompt, setShowBioAiPrompt] = useState(false);
-  const [bioAiInstruction, setBioAiInstruction] = useState("");
-  const [isBioAiLoading, setIsBioAiLoading] = useState(false);
 
   const [cvForm, setCvForm] = useState({
     type: "experience",
@@ -149,7 +144,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
             <CheckCircle2 className="w-4 h-4 text-green-500" />
           </div>
           <p className="text-[10px] text-neutral-500 font-mono uppercase tracking-widest mt-1">
-            {profileData.headline || "Synapse Participant"}
+            {profileData.headline || t("Profile.synapse_participant")}
           </p>
           <div className="flex items-center justify-center gap-4 mt-2">
             {profileData.place_name && (
@@ -166,7 +161,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
                 className="flex items-center gap-1 text-[9px] text-blue-500 font-bold uppercase hover:underline"
               >
                 <Globe className="w-2.5 h-2.5" />
-                Web
+                {t("Profile.web")}
               </a>
             )}
           </div>
@@ -175,43 +170,25 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
         <div className="flex flex-col gap-2 mt-8 w-full">
           {isOwnProfile ? (
             <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1 rounded-2xl h-12 text-[10px] uppercase font-black tracking-widest border-2 border-neutral-100 hover:border-black active:scale-[0.98] transition-all"
-                  onClick={onEdit}
-                >
-                  {t("Profile.edit")}
-                </Button>
+              <div className="flex justify-end gap-2">
+                {currentUser?.role === "admin" && (
+                  <button
+                    onClick={onNavigateToAdmin}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-red-300 text-red-600 rounded-lg group hover:bg-red-50 active:scale-[0.98] transition-all text-left"
+                  >
+                    <ShieldAlert className="w-3 h-3 text-red-500" />
+                    <p className="text-[9px] font-bold">{t("Profile.admin_panel")}</p>
+                  </button>
+                )}
                 <Button
                   variant="ghost"
-                  className="rounded-2xl h-12 px-6 text-[10px] uppercase font-black tracking-widest text-neutral-400 hover:text-black hover:bg-neutral-50 active:scale-[0.98] transition-all"
+                  className="rounded-2xl h-10 px-4 text-[10px] uppercase font-black tracking-widest text-neutral-400 hover:text-black hover:bg-neutral-50 active:scale-[0.98] transition-all"
                   onClick={onLogout}
                   title="Logout"
                 >
                   <LogOut className="w-4 h-4" />
                 </Button>
               </div>
-
-              {currentUser?.role === "admin" && (
-                <button
-                  onClick={onNavigateToAdmin}
-                  className="w-full flex items-center justify-between p-4 bg-red-600 text-white rounded-3xl group shadow-xl shadow-red-600/20 active:scale-[0.98] transition-all mt-2 text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-white/20 p-2 rounded-xl">
-                      <ShieldAlert className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60">
-                        {t("Profile.system_control")}
-                      </p>
-                      <p className="text-xs font-bold">{t("Profile.terminal_access")}</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
-              )}
             </div>
           ) : (
             <div className="flex gap-2">
@@ -264,37 +241,15 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
       {(profileData.bio || isOwnProfile) && (
         <section className="bg-neutral-50 rounded-[32px] border border-neutral-100 mx-4 overflow-hidden">
           {isOwnProfile && (
-            <div className="flex justify-end px-4 pt-3">
-              <button
-                onClick={() => {
-                  if (!isProUser) return;
-                  setShowBioAiPrompt(!showBioAiPrompt);
-                  setBioAiInstruction("");
-                }}
-                disabled={!isProUser}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all",
-                  !isProUser
-                    ? "text-neutral-300 cursor-not-allowed"
-                    : showBioAiPrompt
-                      ? "bg-purple-100 text-purple-600"
-                      : "text-neutral-400 hover:text-purple-500 hover:bg-purple-50",
-                )}
-                title={isProUser ? "AI Edit Bio" : "Upgrade to Pro to use AI bio editing"}
-              >
-                <Sparkles
-                  className={cn(
-                    "w-3 h-3",
-                    isBioAiLoading && "animate-spin",
-                  )}
-                />
-                <span>AI</span>
-                {!isProUser && (
-                  <span className="ml-0.5 px-1 py-0.5 bg-amber-100 text-amber-600 rounded text-[8px] font-black uppercase tracking-wider">
-                    PRO
-                  </span>
-                )}
-              </button>
+            <div className="flex items-center justify-between px-4 pt-3 pb-1">
+              <span className="text-[9px] font-black uppercase tracking-[0.15em] text-neutral-400">{t("Profile.bio")}</span>
+                <button
+                  onClick={onEdit}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold text-neutral-400 hover:text-black hover:bg-neutral-100 transition-all"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>{t("Profile.edit")}</span>
+                </button>
             </div>
           )}
 
@@ -306,63 +261,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
             </div>
           )}
 
-          {showBioAiPrompt && isOwnProfile && isProUser && (
-            <div className="px-4 pb-4">
-              <div className="flex items-center gap-2 p-1 bg-purple-50/50 rounded-xl border border-purple-100 animate-in fade-in slide-in-from-top-1">
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="e.g. Make it more concise and add my expertise in AI..."
-                  className="flex-1 bg-transparent border-none text-[11px] px-3 py-1.5 outline-none font-medium placeholder:text-purple-300 text-purple-900"
-                  value={bioAiInstruction}
-                  onChange={(e) => setBioAiInstruction(e.target.value)}
-                  onKeyDown={async (e) => {
-                    if (e.key === "Enter" && bioAiInstruction && onAiEditBio) {
-                      setIsBioAiLoading(true);
-                      try {
-                        await onAiEditBio(bioAiInstruction);
-                        setShowBioAiPrompt(false);
-                        setBioAiInstruction("");
-                      } finally {
-                        setIsBioAiLoading(false);
-                      }
-                    }
-                  }}
-                />
-                <button
-                  onClick={async () => {
-                    if (bioAiInstruction && onAiEditBio) {
-                      setIsBioAiLoading(true);
-                      try {
-                        await onAiEditBio(bioAiInstruction);
-                        setShowBioAiPrompt(false);
-                        setBioAiInstruction("");
-                      } finally {
-                        setIsBioAiLoading(false);
-                      }
-                    }
-                  }}
-                  disabled={isBioAiLoading || !bioAiInstruction}
-                  className="bg-purple-500 text-white p-1.5 rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-30"
-                >
-                  {isBioAiLoading ? (
-                    <Sparkles className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowBioAiPrompt(false);
-                    setBioAiInstruction("");
-                  }}
-                  className="text-neutral-400 hover:text-neutral-600 p-1.5 transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
+
         </section>
       )}
 
@@ -443,7 +342,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
                 </select>
                 <input
                   type="text"
-                  placeholder="Title / Role"
+                  placeholder={t("Profile.title_role")}
                   value={cvForm.title}
                   onChange={(e) =>
                     setCvForm({ ...cvForm, title: e.target.value })
@@ -452,7 +351,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
                 />
                 <input
                   type="text"
-                  placeholder="Institution / Company"
+                  placeholder={t("Profile.institution")}
                   value={cvForm.subtitle}
                   onChange={(e) =>
                     setCvForm({ ...cvForm, subtitle: e.target.value })
@@ -478,7 +377,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
                   />
                 </div>
                 <textarea
-                  placeholder="Key Responsibilities or Achievements..."
+                  placeholder={t("Profile.responsibilities")}
                   value={cvForm.description}
                   onChange={(e) =>
                     setCvForm({ ...cvForm, description: e.target.value })
@@ -570,7 +469,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
           <div className="mb-8 p-5 bg-neutral-50 rounded-[32px] border border-neutral-200 space-y-4 animate-in fade-in zoom-in-95 shadow-inner">
             <input
               className="w-full bg-white border border-neutral-200 rounded-2xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-black outline-none"
-              placeholder="Skill Name (e.g. React)..."
+              placeholder={t("Profile.skill_name")}
               value={skillForm.name}
               onChange={(e) =>
                 setSkillForm({ ...skillForm, name: e.target.value })
@@ -578,7 +477,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
             />
             <div className="flex items-center justify-between px-2">
               <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
-                Proficiency
+                {t("Profile.proficiency")}
               </span>
               <input
                 type="range"
@@ -645,7 +544,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
                     }}
                     className="bg-black/5 hover:bg-black/10 px-1.5 py-0.5 rounded text-[8px] font-black transition-colors ml-1"
                   >
-                    VERIFY
+                    {t("Profile.verify")}
                   </button>
                 ) : null}
               </div>
@@ -653,11 +552,11 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
               {verifyingSkillName === skill.name && (
                 <div className="mt-2 p-4 bg-white border border-neutral-200 rounded-2xl shadow-xl z-10 animate-in fade-in zoom-in-95">
                   <p className="text-[8px] font-black text-neutral-400 uppercase mb-2 tracking-widest">
-                    Prove Expertise
+                    {t("Profile.prove_expertise")}
                   </p>
                   <input
                     className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-[10px] mb-3 outline-none focus:ring-1 focus:ring-black"
-                    placeholder="Credential URL..."
+                    placeholder={t("Profile.credential_url")}
                     value={verificationUrlInput}
                     onChange={(e) => setVerificationUrlInput(e.target.value)}
                   />
@@ -706,7 +605,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
           <div className="mb-8 p-5 bg-neutral-50 rounded-[32px] border border-neutral-200 space-y-4 shadow-inner">
             <input
               className="w-full bg-white border border-neutral-200 rounded-2xl px-4 py-3 text-xs font-bold"
-              placeholder="Project Instance Name..."
+              placeholder={t("Profile.project_name")}
               value={portfolioForm.title}
               onChange={(e) =>
                 setPortfolioForm({ ...portfolioForm, title: e.target.value })
@@ -714,7 +613,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
             />
             <textarea
               className="w-full bg-white border border-neutral-200 rounded-2xl px-4 py-3 text-xs min-h-[100px]"
-              placeholder="Architectural Details / Outcome..."
+              placeholder={t("Profile.project_details")}
               value={portfolioForm.description}
               onChange={(e) =>
                 setPortfolioForm({
