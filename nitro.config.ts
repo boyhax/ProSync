@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-import { defineNitroConfig } from "nitropack/config";
-
-export default defineNitroConfig({
-  compatibilityDate: "2024-04-03",
-  srcDir: "server",
-=======
 import { defineConfig } from "nitro";
 
 export default defineConfig({
@@ -17,5 +10,4 @@ export default defineConfig({
       baseURL: "/",
     },
   ],
->>>>>>> nitro
 });

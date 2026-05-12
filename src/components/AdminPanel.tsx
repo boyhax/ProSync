@@ -10,12 +10,8 @@ interface AdminPanelProps {
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
-<<<<<<< HEAD
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'data' | 'system'>('analytics');
-=======
   const ability = useMemo(() => defineAbilityFor(currentUser), [currentUser]);
   const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'system'>('analytics');
->>>>>>> nitro
   const [analytics, setAnalytics] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
@@ -28,71 +24,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     if (!ability.can('view', 'AdminPanel')) return;
     fetchAnalytics();
     fetchUsers();
-<<<<<<< HEAD
-    if (activeTab === 'data') {
-      fetchAdminContent();
-    }
-  }, [activeTab]);
-
-  const fetchAdminContent = async () => {
-    try {
-      setIsLoading(true);
-      const [ps, js, ts] = await Promise.all([
-        fetchAPI('/api/admin/content/posts', { headers: { 'x-user-id': currentUser.id.toString() } }),
-        fetchAPI('/api/admin/content/jobs', { headers: { 'x-user-id': currentUser.id.toString() } }),
-        fetchAPI('/api/admin/content/topics', { headers: { 'x-user-id': currentUser.id.toString() } })
-      ]);
-      setPosts(ps);
-      setJobs(js);
-      setTopics(ts);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGenerateSeed = async () => {
-    setIsLoading(true);
-    try {
-      await fetchAPI('/api/admin/seed/generate', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-id': currentUser.id.toString() 
-        },
-        body: JSON.stringify({ count: seedCount })
-      });
-      alert('Seed generation success');
-      fetchAdminContent();
-      fetchAnalytics();
-    } catch (e: any) {
-      alert(`Generation failed: ${e.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleClearSeed = async () => {
-    if (!confirm('Delete all records marked as [is_seed: true]?')) return;
-    setIsLoading(true);
-    try {
-      await fetchAPI('/api/admin/seed/clear', {
-        method: 'POST',
-        headers: { 'x-user-id': currentUser.id.toString() }
-      });
-      alert('Seed content cleared');
-      fetchAdminContent();
-      fetchAnalytics();
-    } catch (e: any) {
-      alert(`Clear failed: ${e.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-=======
   }, [ability]);
->>>>>>> nitro
 
   const fetchAnalytics = async () => {
     if (!ability.can('read', 'Analytics')) return;

@@ -1,15 +1,10 @@
-<<<<<<< HEAD
-import React, { useState, useEffect, useRef } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { motion, AnimatePresence } from "motion/react";
-=======
 import { formatDistanceToNow, isValid } from "date-fns";
->>>>>>> nitro
 import {
   ArrowRight,
   Award,
   Bell,
   Briefcase,
+  CheckCircle2,
   ChevronRight,
   FileText,
   FolderOpen,
@@ -31,7 +26,7 @@ import {
   X
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Navigate,
@@ -54,7 +49,7 @@ import { SetupPage } from "./components/SetupPage";
 import { Avatar } from "./components/ui/Avatar";
 import { Button } from "./components/ui/Button";
 import { Card } from "./components/ui/Card";
-import { cn } from "./lib/utils";
+import { cn, fetchAPI } from "./lib/utils";
 import { geminiService } from "./services/aiClient";
 import * as api from "./services/api";
 import type {
@@ -62,468 +57,11 @@ import type {
   Post,
   User
 } from "./types";
-<<<<<<< HEAD
-import { geminiService } from "./services/geminiService";
-import { formatDistanceToNow, isValid } from "date-fns";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
-import { useTranslation } from "react-i18next";
-
-// --- Views ---
-
-const stringId = (id: any) => {
-  if (!id) return "";
-  if (typeof id === "string" && id.includes(":")) return id.split(":")[1];
-  return id.toString();
-};
-
-const PostCard = ({
-  post,
-  onComment,
-  isExpanded,
-  currentUser,
-  onApply,
-  onRespond,
-  onSelectUser,
-  isUnfolded,
-  onUnfold,
-  onDelete,
-  onEdit,
-}: {
-  post: Post;
-  onComment: (postId: string | number) => void;
-  isExpanded?: boolean;
-  currentUser: User | null;
-  onApply: (postId: string | number) => void;
-  onRespond: (postId: string | number, type: "quiz" | "poll", index: number) => void;
-  onSelectUser: (userId: string | number) => void;
-  isUnfolded: boolean;
-  onUnfold: (postId: string | number | null) => void;
-  onDelete?: (postId: string | number) => void;
-  onEdit?: (postId: string | number, currentContent: string) => void;
-}) => {
-  if (!post) return null;
-
-  const { t } = useTranslation();
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState("");
-  const [showQuizResult, setShowQuizResult] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-
-  const canManage = currentUser && (stringId(currentUser.id) === stringId(post.user_id) || currentUser.role === 'admin');
-
-  const handleDelete = async () => {
-    if (onDelete && post.id) {
-      setIsDeleting(true);
-      await onDelete(post.id);
-      setIsDeleting(false);
-      setIsConfirmingDelete(false);
-    }
-  };
-
-  const loadComments = async () => {
-    const data = await fetchAPI(`/api/posts/${post.id}/comments`);
-    setComments(data);
-  };
-
-  useEffect(() => {
-    if (isExpanded) loadComments();
-  }, [isExpanded]);
-
-  const submitComment = async () => {
-    if (!newComment || !currentUser) return;
-    await fetchAPI("/api/comments", {
-      method: "POST",
-      body: JSON.stringify({
-        user_id: currentUser.id,
-        post_id: post.id,
-        content: newComment,
-      }),
-    });
-    setNewComment("");
-    loadComments();
-  };
-
-  const isHiring = post?.content?.toLowerCase()?.includes("#hiring") || false;
-
-  return (
-    <Card className="mb-4">
-      <div className="p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div
-            className="cursor-pointer"
-            onClick={() => onSelectUser(post.user_id)}
-          >
-            <Avatar src={post.avatar_url} name={post.full_name} />
-          </div>
-          <div
-            className="cursor-pointer"
-            onClick={() => onSelectUser(post.user_id)}
-          >
-            <h4 className="font-semibold text-neutral-900 hover:underline">
-              {post.full_name}
-            </h4>
-            <p className="text-xs text-neutral-500">{post.headline}</p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-[10px] text-neutral-400 font-mono uppercase tracking-wider hidden sm:inline">
-              {post.created_at && isValid(new Date(post.created_at)) ? (
-                <>{formatDistanceToNow(new Date(post.created_at))} ago</>
-              ) : (
-                <>Just now</>
-              )}
-            </span>
-            
-            {canManage && (
-              <div className="relative">
-                <button 
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="p-1 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-400 hover:text-black"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-
-                <AnimatePresence>
-                  {isMenuOpen && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-10" 
-                        onClick={() => setIsMenuOpen(false)}
-                      />
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                        className="absolute right-0 top-full mt-1 w-44 bg-white border border-neutral-200 rounded-xl shadow-xl z-20 overflow-hidden"
-                      >
-                        <button
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            onEdit?.(post.id, post.content);
-                          }}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-neutral-600 hover:bg-neutral-50 transition-colors"
-                        >
-                          <FileText className="w-3 h-3" />
-                          Edit Post
-                        </button>
-                        <button
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            setIsConfirmingDelete(true);
-                          }}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          Delete Post
-                        </button>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <AnimatePresence>
-          {isConfirmingDelete && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4"
-              >
-                <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center">
-                  <Trash2 className="w-6 h-6 text-red-500" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black tracking-tight">Delete Post?</h3>
-                  <p className="text-sm text-neutral-500">This action cannot be undone. The post and its comments will be permanently removed.</p>
-                </div>
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 rounded-xl"
-                    onClick={() => setIsConfirmingDelete(false)}
-                    disabled={isDeleting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    className="flex-1 rounded-xl bg-red-500 hover:bg-red-600 text-white"
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? "Deleting..." : "Delete"}
-                  </Button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="prose prose-sm max-w-none text-neutral-700 mb-4">
-          <div className="markdown-body">
-            <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-              {isUnfolded
-                ? post.content
-                : (post?.content?.length || 0) > 280
-                  ? post.content.substring(0, 280) + "..."
-                  : post.content}
-            </Markdown>
-          </div>
-          {(post?.content?.length || 0) > 280 && (
-            <button
-              onClick={() => onUnfold(isUnfolded ? null : post.id)}
-              className="text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-black mt-2 transition-colors flex items-center gap-1"
-            >
-              {isUnfolded ? "View less" : "Read more"}
-              <ArrowRight
-                className={cn(
-                  "w-3 h-3 transition-transform",
-                  isUnfolded ? "-rotate-90" : "rotate-0",
-                )}
-              />
-            </button>
-          )}
-        </div>
-
-        {post.poll_data && (
-          <div className="mb-4 bg-blue-50/20 border border-blue-50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Vote className="w-3.5 h-3.5 text-blue-500" />
-              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">
-                Career Poll
-              </span>
-            </div>
-            <p className="text-xs font-bold mb-3">
-              {(() => {
-                try {
-                  const data = typeof post.poll_data === 'string' ? JSON.parse(post.poll_data) : post.poll_data;
-                  return data?.question || "Poll";
-                } catch (e) {
-                  return "Poll";
-                }
-              })()}
-            </p>
-            <div className="space-y-2">
-              {(() => {
-                try {
-                  const data = typeof post.poll_data === 'string' ? JSON.parse(post.poll_data) : post.poll_data;
-                  if (!data?.options) return null;
-                  return data.options.map((opt: string, i: number) => {
-                      const stats =
-                        post.response_stats?.split(",").map((s: string) => s.split(":")) ||
-                        [];
-                      const votes = Number(
-                        stats.find((s: string[]) => s[0] === String(i))?.[1] || 0,
-                      );
-                      const total = stats.reduce(
-                        (acc: number, curr: string[]) => acc + Number(curr[1]),
-                        0,
-                      );
-                      const percent =
-                        total > 0 ? Math.round((votes / total) * 100) : 0;
-
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => onRespond(post.id, "poll", i)}
-                          className="w-full text-left p-2 rounded-lg bg-white border border-blue-100 hover:border-blue-400 text-xs transition-all relative overflow-hidden"
-                        >
-                          <div
-                            className="absolute inset-y-0 left-0 bg-blue-100/50 transition-all duration-1000"
-                            style={{ width: `${percent}%` }}
-                          />
-                          <div className="flex justify-between items-center relative z-10 w-full">
-                            <span className="font-medium">{opt}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-blue-400">
-                                {votes}
-                              </span>
-                              <span className="text-[10px] text-blue-600 font-bold">
-                                {percent}%
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    },
-                  );
-                } catch (e) {
-                  return null;
-                }
-              })()}
-            </div>
-          </div>
-        )}
-
-        {post.quiz_data && (
-          <div className="mb-4 bg-yellow-50/20 border border-yellow-50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Trophy className="w-3.5 h-3.5 text-yellow-500" />
-              <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">
-                Skill Quiz
-              </span>
-            </div>
-            <p className="text-xs font-bold mb-3">
-              {(() => {
-                try {
-                  const data = typeof post.quiz_data === 'string' ? JSON.parse(post.quiz_data) : post.quiz_data;
-                  return data?.question || "Quiz";
-                } catch (e) {
-                  return "Quiz";
-                }
-              })()}
-            </p>
-            <div className="space-y-2">
-              {(() => {
-                try {
-                  const quizData = typeof post.quiz_data === 'string' ? JSON.parse(post.quiz_data!) : post.quiz_data;
-                  if (!quizData?.options) return null;
-                  return quizData.options.map((opt: string, i: number) => {
-                    const isCorrect = quizData.correctIndex === i;
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => {
-                          onRespond(post.id, "quiz", i);
-                          setShowQuizResult(true);
-                        }}
-                        className={cn(
-                          "w-full text-left p-2 rounded-lg bg-white border border-yellow-100 text-xs transition-all",
-                          showQuizResult && isCorrect
-                            ? "bg-green-50 border-green-200 text-green-700 ring-1 ring-green-200"
-                            : showQuizResult && !isCorrect
-                              ? "opacity-40"
-                              : "hover:border-yellow-400",
-                        )}
-                      >
-                        <div className="flex justify-between items-center w-full">
-                          <span
-                            className={cn(
-                              showQuizResult && isCorrect && "font-bold",
-                            )}
-                          >
-                            {opt}
-                          </span>
-                          {showQuizResult && isCorrect && (
-                            <CheckCircle2 className="w-3 h-3 text-green-500" />
-                          )}
-                        </div>
-                      </button>
-                    );
-                  });
-                } catch (e) {
-                  return null;
-                }
-              })()}
-            </div>
-          </div>
-        )}
-
-        {post.attachment_type === "cv_item" && (
-          <div className="bg-neutral-50 border border-neutral-100 rounded-lg p-3 flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-neutral-500 border border-neutral-200">
-              <Briefcase className="w-4 h-4" />
-            </div>
-            <div className="flex-1">
-              <p className="text-xs font-semibold text-neutral-800">
-                Attached Professional Milestone
-              </p>
-              <p className="text-[10px] text-neutral-500">
-                This user and our nodes have verified this experience entry.
-              </p>
-            </div>
-            <CheckCircle2 className="w-4 h-4 text-green-500" />
-          </div>
-        )}
-
-        {isHiring && currentUser && post.user_id !== currentUser.id && (
-          <div className="mb-4 p-4 bg-black rounded-xl text-white flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest mb-1 italic">
-                {t("PostCard.opportunity_portal")}
-              </p>
-              <p className="text-[10px] opacity-70">
-                {t("PostCard.direct_sync")}
-              </p>
-            </div>
-            <Button
-              variant="secondary"
-              className="h-8 text-[10px] uppercase font-bold"
-              onClick={() => onApply(post.id)}
-            >
-              {t("PostCard.apply_now")}
-            </Button>
-          </div>
-        )}
-
-        <div className="flex items-center gap-4 pt-3 border-t border-neutral-100 mb-3">
-          <button
-            onClick={() => onComment(post.id)}
-            className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-black transition-colors"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>{post.comment_count} Comments</span>
-          </button>
-          <button className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-black transition-colors">
-            <Plus className="w-4 h-4" />
-            <span>Support</span>
-          </button>
-        </div>
-
-        {isExpanded && (
-          <div className="space-y-4 pt-4 border-t border-neutral-100">
-            {comments.map((c) => (
-              <div key={c.id} className="flex gap-3">
-                <Avatar src={c.avatar_url} name={c.full_name} size="sm" />
-                <div className="bg-neutral-50 rounded-lg p-2 flex-1">
-                  <p className="text-[10px] font-bold mb-1">{c.full_name}</p>
-                  <div className="markdown-body text-xs text-neutral-700">
-                    <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>{c.content}</Markdown>
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Write a comment..."
-                className="flex-1 text-xs bg-neutral-100 border-none rounded-lg px-3 py-2"
-                onKeyDown={(e) => e.key === "Enter" && submitComment()}
-              />
-              <Button
-                variant="outline"
-                className="px-2 py-0"
-                onClick={submitComment}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </Card>
-  );
-=======
 
 const normalizeUserId = (id: string | number) => {
   const raw = String(id || "").trim();
   if (!raw) return "";
   return raw.includes(":") ? raw : `users:${raw}`;
->>>>>>> nitro
 };
 
 export default function App() {
@@ -890,12 +428,7 @@ export default function App() {
 
   const fetchTopics = async () => {
     try {
-<<<<<<< HEAD
-      const url = currentUser ? `/api/topics?userId=${currentUser.id}` : "/api/topics";
-      const data = await fetchAPI(url);
-=======
       const data = await api.topics.list();
->>>>>>> nitro
       setTopics(data);
     } catch (err) {
       console.error(err);
@@ -905,13 +438,8 @@ export default function App() {
   const fetchFollowedTopics = async () => {
     if (!currentUser) return;
     try {
-<<<<<<< HEAD
-      const data = await fetchAPI(`/api/topics/followed/${currentUser.id}`);
-      if (data) setFollowedTopics(data);
-=======
       const data = await api.setup.status();
       setIsSetupNeeded(!data.initialized);
->>>>>>> nitro
     } catch (err) {
       console.error(err);
     }
@@ -1058,13 +586,7 @@ export default function App() {
     }
     setLoading(true);
     try {
-<<<<<<< HEAD
-      const data = await fetchAPI(
-        `/api/search?q=${debouncedSearchQuery}&type=${searchType || "all"}`,
-      );
-=======
       const data = await api.search.all(searchQuery, searchType || 'all');
->>>>>>> nitro
       setSearchResults(data);
       setPosts(data.posts || []);
       setJobs(data.jobs || []);
@@ -1156,11 +678,7 @@ export default function App() {
 
   const fetchCandidates = async () => {
     try {
-<<<<<<< HEAD
-      const data = await fetchAPI(`/api/candidates?skills=${debouncedSearchQuery}`);
-=======
       const data = await api.candidates.list(searchQuery);
->>>>>>> nitro
       setCandidates(data);
     } catch (err) {
       console.error(err);
@@ -1178,25 +696,12 @@ export default function App() {
 
   const fetchJobs = async () => {
     try {
-<<<<<<< HEAD
-      const query = new URLSearchParams();
-      const searchTerm = searchType === "jobs" ? debouncedSearchQuery : jobFilters.q;
-      if (searchTerm) query.set("q", searchTerm);
-      if (jobFilters.experience !== "all")
-        query.set("experience", jobFilters.experience);
-      if (jobFilters.minSalary) query.set("minSalary", jobFilters.minSalary);
-      if (selectedPlaceId !== "all")
-        query.set("placeId", selectedPlaceId.toString());
-
-      const data = await fetchAPI(`/api/jobs?${query.toString()}`);
-=======
       const data = await api.jobs.list({
         q: searchType === 'jobs' ? searchQuery : jobFilters.q,
         experience: jobFilters.experience,
         minSalary: jobFilters.minSalary,
         placeId: selectedPlaceId !== 'all' ? selectedPlaceId.toString() : undefined,
       });
->>>>>>> nitro
       setJobs(data);
     } catch (err) {
       console.error(err);
@@ -1390,33 +895,12 @@ export default function App() {
     }
   };
 
-<<<<<<< HEAD
-  const handleAiMagicJob = async (instruction?: string) => {
-    setIsAiLoading(true);
-    try {
-      const result = await geminiService.magicJobDescription(
-        newJob.title,
-        currentUser?.full_name || "",
-        newJob.description,
-        instruction
-      );
-      if (result && result.description) {
-        setNewJob({ ...newJob, description: result.description });
-        setShowAiPrompt(false);
-        setAiInstruction("");
-      }
-    } catch (err) {
-      console.error("AI Job Magic failed:", err);
-    } finally {
-      setIsAiLoading(false);
-=======
   const handleAiBio = async (instruction: string) => {
     if (!currentUser) return;
     const newBio = await geminiService.magicBio(profileData?.bio || "", instruction);
     if (newBio) {
       await api.profile.update(currentUser.id, { bio: newBio });
       fetchProfile(currentUser.id);
->>>>>>> nitro
     }
   };
 
@@ -1939,26 +1423,6 @@ export default function App() {
                           {searchResults.users?.some(
                             (u: any) => u.is_company_rep,
                           ) && (
-<<<<<<< HEAD
-                            <section>
-                              <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">
-                                {t("App.organizations") || "Organizations"}
-                              </h3>
-                              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-                                {searchResults.users
-                                  ?.filter((u: any) => u.is_company_rep)
-                                  .map((u: any) => (
-                                    <button
-                                      key={u.id}
-                                      onClick={() => {
-                                        setSelectedUserId(u.id);
-                                        setActiveTab("profile");
-                                        setIsRightOpen(true);
-                                      }}
-                                      className="flex-shrink-0 w-32 flex flex-col items-center text-center group"
-                                    >
-                                      <div className="relative">
-=======
                               <section>
                                 <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">
                                   {t("App.organizations") || "Organizations"}
@@ -2018,66 +1482,11 @@ export default function App() {
                                         }}
                                         className="flex-shrink-0 w-32 flex flex-col items-center text-center group"
                                       >
->>>>>>> nitro
                                         <Avatar
                                           src={u.avatar_url}
                                           name={u.full_name}
                                           size="md"
                                         />
-<<<<<<< HEAD
-                                        <div className="absolute -bottom-1 -right-1 bg-black text-white p-1 rounded-full border border-white">
-                                          <Briefcase className="w-2 h-2" />
-                                        </div>
-                                      </div>
-                                      <p className="text-[10px] font-bold mt-2 truncate w-full">
-                                        {u.full_name}
-                                      </p>
-                                      <p className="text-[8px] text-neutral-400 truncate w-full uppercase">
-                                        Verified Org
-                                      </p>
-                                    </button>
-                                  ))}
-                              </div>
-                            </section>
-                          )}
-
-                          {searchResults.users?.some(
-                            (u: any) => !u.is_company_rep,
-                          ) && (
-                            <section>
-                              <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">
-                                {t("App.users") || "Users"}
-                              </h3>
-                              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-                                {searchResults.users
-                                  ?.filter((u: any) => !u.is_company_rep)
-                                  .map((u: any) => (
-                                    <button
-                                      key={u.id}
-                                      onClick={() => {
-                                        setSelectedUserId(u.id);
-                                        setActiveTab("profile");
-                                        setIsRightOpen(true);
-                                      }}
-                                      className="flex-shrink-0 w-32 flex flex-col items-center text-center group"
-                                    >
-                                      <Avatar
-                                        src={u.avatar_url}
-                                        name={u.full_name}
-                                        size="md"
-                                      />
-                                      <p className="text-[10px] font-bold mt-2 truncate w-full">
-                                        {u.full_name}
-                                      </p>
-                                      <p className="text-[8px] text-neutral-400 truncate w-full uppercase font-mono">
-                                        {u.headline?.split("|")[0]}
-                                      </p>
-                                    </button>
-                                  ))}
-                              </div>
-                            </section>
-                          )}
-=======
                                         <p className="text-[10px] font-bold mt-2 truncate w-full">
                                           {u.full_name}
                                         </p>
@@ -2089,7 +1498,6 @@ export default function App() {
                                 </div>
                               </section>
                             )}
->>>>>>> nitro
                         </div>
                       )}
 
@@ -2706,644 +2114,6 @@ export default function App() {
                       </div>
                     </div>
                   ) : (
-<<<<<<< HEAD
-                    <div className="space-y-6">
-                      {/* Job Alerts UI */}
-                      <div className="bg-gradient-to-br from-neutral-900 to-black rounded-3xl p-6 text-white shadow-xl overflow-hidden relative group">
-                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-                          <Bell className="w-24 h-24 rotate-12" />
-                        </div>
-                        <div className="relative z-10">
-                          <div className="flex justify-between items-start mb-6">
-                            <div>
-                              <h3 className="text-lg font-bold tracking-tight">
-                                Personalized Alerts
-                              </h3>
-                              <p className="text-[10px] text-neutral-400 font-mono uppercase tracking-[0.2em] mt-1">
-                                Real-time matching engine
-                              </p>
-                            </div>
-                            {!showJobAlertForm && (
-                              <Button
-                                onClick={() => setShowJobAlertForm(true)}
-                                className="bg-white text-black hover:bg-neutral-200 rounded-xl text-[10px] font-bold h-8 px-4"
-                              >
-                                Create Alert
-                              </Button>
-                            )}
-                          </div>
-
-                          {showJobAlertForm ? (
-                            <div className="space-y-4 bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 animate-in fade-in zoom-in-95 duration-300">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
-                                  New Alert Criteria
-                                </span>
-                                <button
-                                  onClick={() => setShowJobAlertForm(false)}
-                                  className="text-neutral-500 hover:text-white"
-                                >
-                                  <Plus className="w-4 h-4 rotate-45" />
-                                </button>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                  <label className="text-[8px] font-bold text-neutral-500 uppercase ml-1">
-                                    Keywords
-                                  </label>
-                                  <input
-                                    type="text"
-                                    placeholder="e.g. React, Python"
-                                    value={newJobAlert.keyword}
-                                    onChange={(e) =>
-                                      setNewJobAlert({
-                                        ...newJobAlert,
-                                        keyword: e.target.value,
-                                      })
-                                    }
-                                    className="w-full bg-white/10 border-none rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-white outline-none"
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-[8px] font-bold text-neutral-500 uppercase ml-1">
-                                    Location
-                                  </label>
-                                  <input
-                                    type="text"
-                                    placeholder="e.g. Remote, NY"
-                                    value={newJobAlert.location}
-                                    onChange={(e) =>
-                                      setNewJobAlert({
-                                        ...newJobAlert,
-                                        location: e.target.value,
-                                      })
-                                    }
-                                    className="w-full bg-white/10 border-none rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-white outline-none"
-                                  />
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[8px] font-bold text-neutral-500 uppercase ml-1">
-                                  Experience Level
-                                </label>
-                                <select
-                                  value={newJobAlert.experience_level}
-                                  onChange={(e) =>
-                                    setNewJobAlert({
-                                      ...newJobAlert,
-                                      experience_level: e.target.value,
-                                    })
-                                  }
-                                  className="w-full bg-white/10 border-none rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-white outline-none appearance-none"
-                                >
-                                  <option
-                                    value="all"
-                                    className="bg-neutral-900"
-                                  >
-                                    All Levels
-                                  </option>
-                                  <option
-                                    value="Junior"
-                                    className="bg-neutral-900"
-                                  >
-                                    Junior
-                                  </option>
-                                  <option
-                                    value="Mid"
-                                    className="bg-neutral-900"
-                                  >
-                                    Mid Level
-                                  </option>
-                                  <option
-                                    value="Senior"
-                                    className="bg-neutral-900"
-                                  >
-                                    Senior
-                                  </option>
-                                  <option
-                                    value="Lead"
-                                    className="bg-neutral-900"
-                                  >
-                                    Lead
-                                  </option>
-                                </select>
-                              </div>
-                              <Button
-                                onClick={createJobAlert}
-                                className="w-full bg-white text-black hover:bg-neutral-200 rounded-xl text-xs font-bold py-5"
-                              >
-                                Enable Pulse Alert
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                              {(jobAlerts?.length || 0) === 0 ? (
-                                <div className="text-[10px] text-neutral-500 italic py-2">
-                                  No active alerts. Add one to see real-time
-                                  matches.
-                                </div>
-                              ) : (
-                                jobAlerts?.map((alert) => (
-                                  <div
-                                    key={alert.id}
-                                    className="flex-shrink-0 bg-white/5 border border-white/10 p-3 rounded-2xl min-w-[140px] relative group/alert"
-                                  >
-                                    <button
-                                      onClick={() => deleteJobAlert(alert.id)}
-                                      className="absolute -top-1 -right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover/alert:opacity-100 transition-opacity"
-                                    >
-                                      <Plus className="w-2 h-2 rotate-45" />
-                                    </button>
-                                    <p className="text-[10px] font-bold truncate">
-                                      {alert.keyword || "All Topics"}
-                                    </p>
-                                    <div className="flex flex-wrap gap-1 mt-2">
-                                      <span className="text-[8px] px-1.5 py-0.5 bg-white/10 rounded uppercase font-mono">
-                                        {alert.experience_level}
-                                      </span>
-                                      {alert.location && (
-                                        <span className="text-[8px] px-1.5 py-0.5 bg-white/10 rounded uppercase font-mono">
-                                          {alert.location}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Oman Specific Filter Bar */}
-                      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
-                        <button
-                          onClick={() => setSelectedPlaceId("all")}
-                          className={cn(
-                            "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap border",
-                            selectedPlaceId === "all"
-                              ? "bg-black border-black text-white shadow-lg"
-                              : "bg-white border-neutral-100 text-neutral-400 hover:border-neutral-300",
-                          )}
-                        >
-                          All Oman
-                        </button>
-                        {places.map((place) => (
-                          <button
-                            key={place.id}
-                            onClick={() => setSelectedPlaceId(place.id)}
-                            className={cn(
-                              "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap border",
-                              selectedPlaceId === place.id
-                                ? "bg-black border-black text-white shadow-lg"
-                                : "bg-white border-neutral-100 text-neutral-400 hover:border-neutral-300",
-                            )}
-                          >
-                            {place.name}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Job Filters */}
-                      <div className="bg-white border border-neutral-200 rounded-2xl p-4 shadow-sm space-y-4">
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <select
-                              value={jobFilters.experience}
-                              onChange={(e) =>
-                                setJobFilters({
-                                  ...jobFilters,
-                                  experience: e.target.value,
-                                })
-                              }
-                              className="w-full px-3 py-2 text-xs bg-neutral-50 border border-neutral-100 rounded-xl outline-none"
-                            >
-                              <option value="all">Level: All</option>
-                              <option value="Junior">Junior</option>
-                              <option value="Mid">Mid Level</option>
-                              <option value="Senior">Senior</option>
-                              <option value="Lead">Lead</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4 py-1">
-                          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest whitespace-nowrap">
-                            Min Salary ($k)
-                          </span>
-                          <input
-                            type="range"
-                            min="0"
-                            max="300"
-                            step="10"
-                            value={jobFilters.minSalary || 0}
-                            onChange={(e) =>
-                              setJobFilters({
-                                ...jobFilters,
-                                minSalary: e.target.value,
-                              })
-                            }
-                            className="flex-1 accent-black h-1 bg-neutral-100 rounded-lg appearance-none cursor-pointer"
-                          />
-                          <span className="text-xs font-mono font-bold w-12 text-right">
-                            ${jobFilters.minSalary || 0}k
-                          </span>
-                        </div>
-                      </div>
-
-                      {(currentUser?.role === "company" || currentUser?.is_company_rep === 1) && (
-                        <div className="bg-white border border-neutral-200 rounded-2xl shadow-sm p-4">
-                          {!showJobForm ? (
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <h3 className="font-bold text-sm">
-                                  Post a New Job
-                                </h3>
-                                <p className="text-xs text-neutral-500">
-                                  Reach verified professionals in our network.
-                                </p>
-                              </div>
-                              <Button
-                                onClick={() => setShowJobForm(true)}
-                                className="rounded-xl text-xs"
-                              >
-                                Create Job
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-bold text-sm">
-                                  Job Details
-                                </h3>
-                                <Button
-                                  variant="ghost"
-                                  onClick={() => setShowJobForm(false)}
-                                  className="text-neutral-400 h-6 px-2"
-                                >
-                                  <Plus className="w-4 h-4 rotate-45" />
-                                </Button>
-                              </div>
-                              <input
-                                type="text"
-                                placeholder="Job Title (e.g. Senior Backend Engineer)"
-                                value={newJob.title}
-                                onChange={(e) =>
-                                  setNewJob({
-                                    ...newJob,
-                                    title: e.target.value,
-                                  })
-                                }
-                                className="w-full text-xs p-3 rounded-lg border border-neutral-200"
-                              />
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  placeholder="Location (e.g. Remote)"
-                                  value={newJob.location}
-                                  onChange={(e) =>
-                                    setNewJob({
-                                      ...newJob,
-                                      location: e.target.value,
-                                    })
-                                  }
-                                  className="w-2/5 text-xs p-3 rounded-lg border border-neutral-200"
-                                />
-                                <input
-                                  type="text"
-                                  placeholder="Salary (e.g. $120k - $150k)"
-                                  value={newJob.salary_range}
-                                  onChange={(e) =>
-                                    setNewJob({
-                                      ...newJob,
-                                      salary_range: e.target.value,
-                                    })
-                                  }
-                                  className="w-2/5 text-xs p-3 rounded-lg border border-neutral-200"
-                                />
-                                <select
-                                  value={newJob.experience_level}
-                                  onChange={(e) =>
-                                    setNewJob({
-                                      ...newJob,
-                                      experience_level: e.target.value,
-                                    })
-                                  }
-                                  className="w-1/5 text-xs p-3 rounded-lg border border-neutral-200 outline-none bg-white"
-                                >
-                                  <option value="Junior">Junior</option>
-                                  <option value="Mid">Mid</option>
-                                  <option value="Senior">Senior</option>
-                                  <option value="Lead">Lead</option>
-                                </select>
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[9px] font-bold text-neutral-400 uppercase ml-1">
-                                  Application Deadline
-                                </label>
-                                <input
-                                  type="date"
-                                  value={newJob.end_date}
-                                  onChange={(e) =>
-                                    setNewJob({
-                                      ...newJob,
-                                      end_date: e.target.value,
-                                    })
-                                  }
-                                  className="w-full text-xs p-3 rounded-lg border border-neutral-200"
-                                />
-                              </div>
-                              <div className="relative">
-                                <textarea
-                                  placeholder="Job Description & Requirements..."
-                                  value={newJob.description}
-                                  onChange={(e) =>
-                                    setNewJob({
-                                      ...newJob,
-                                      description: e.target.value,
-                                    })
-                                  }
-                                  className="w-full text-xs p-3 rounded-lg border border-neutral-200 min-h-[150px] pr-10"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setShowAiPrompt(!showAiPrompt)}
-                                  disabled={isAiLoading}
-                                  className={cn(
-                                    "absolute top-3 right-3 p-1.5 rounded-lg transition-all text-purple-600 hover:bg-purple-50",
-                                    showAiPrompt && "bg-purple-50 shadow-inner"
-                                  )}
-                                >
-                                  <Sparkles className={cn("w-4 h-4", isAiLoading && "animate-spin")} />
-                                </button>
-                              </div>
-
-                              {showAiPrompt && (
-                                <div className="p-1 bg-purple-50/50 rounded-xl flex items-center gap-2 border border-purple-100 animate-in fade-in slide-in-from-top-1">
-                                  <input
-                                    autoFocus
-                                    type="text"
-                                    placeholder="Instruction for AI (e.g. 'add high-level technical requirements')..."
-                                    className="flex-1 bg-transparent border-none text-[11px] px-3 py-1.5 outline-none font-medium placeholder:text-purple-300 text-purple-900"
-                                    value={aiInstruction}
-                                    onChange={(e) => setAiInstruction(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && handleAiMagicJob(aiInstruction)}
-                                  />
-                                  <button
-                                    onClick={() => handleAiMagicJob(aiInstruction)}
-                                    disabled={isAiLoading}
-                                    className="p-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-30 transition-all"
-                                  >
-                                    <Sparkles className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
-
-                              <Button
-                                onClick={postJob}
-                                className="w-full rounded-xl"
-                                disabled={!newJob.title || !newJob.description}
-                              >
-                                Publish Job
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="space-y-4">
-                        {(jobs?.length || 0) === 0 ? (
-                          <div className="text-center py-20 text-neutral-400">
-                            No jobs match your criteria.
-                          </div>
-                        ) : (
-                          <div
-                            style={{
-                              height: `${jobVirtualizer.getTotalSize()}px`,
-                              width: "100%",
-                              position: "relative",
-                            }}
-                          >
-                            {jobVirtualizer.getVirtualItems().map((virtualItem) => {
-                              const job = jobs[virtualItem.index];
-                              if (!job) return null;
-                              return (
-                                <div
-                                  key={virtualItem.key}
-                                  data-index={virtualItem.index}
-                                  ref={jobVirtualizer.measureElement}
-                                  style={{
-                                    position: "absolute",
-                                    top: 0,
-                                    left: 0,
-                                    width: "100%",
-                                    transform: `translateY(${virtualItem.start}px)`,
-                                  }}
-                                  className="pb-4"
-                                >
-                                  <div className="bg-white border border-neutral-200 rounded-2xl p-5 hover:shadow-md transition-shadow">
-                                    <div className="flex justify-between items-start mb-4">
-                                      <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <h3 className="font-bold text-lg">
-                                            {job.title}
-                                          </h3>
-                                          <span className="text-[9px] font-bold uppercase tracking-widest bg-black text-white px-1.5 py-0.5 rounded">
-                                            {job.experience_level}
-                                          </span>
-                                        </div>
-                                        <div className="flex flex-wrap gap-3 text-xs text-neutral-500 font-mono">
-                                          <span className="flex items-center gap-1 bg-neutral-100 px-2 py-1 rounded-md">
-                                            <Briefcase className="w-3 h-3" />{" "}
-                                            {job.company_name}
-                                          </span>
-                                          <span className="flex items-center gap-1 bg-neutral-100 px-2 py-1 rounded-md">
-                                            <MapPin className="w-3 h-3" />{" "}
-                                            {job.location}
-                                          </span>
-                                          {job.salary_range && (
-                                            <span className="flex items-center gap-1 bg-neutral-100 px-2 py-1 rounded-md">
-                                              <TrendingUp className="w-3 h-3 text-green-600" />{" "}
-                                              {job.salary_range}
-                                            </span>
-                                          )}
-                                          {job.end_date &&
-                                            isValid(new Date(job.end_date)) && (
-                                              <span className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-1 rounded-md border border-red-100">
-                                                <Award className="w-3 h-3" /> Closes:{" "}
-                                                {new Date(
-                                                  job.end_date,
-                                                ).toLocaleDateString()}
-                                              </span>
-                                            )}
-                                        </div>
-                                      </div>
-                                      <div className="flex flex-col items-end gap-2">
-                                        {currentUser?.id === job.user_id && (
-                                          <Button
-                                            onClick={() => fetchApplicants(job.id)}
-                                            variant="outline"
-                                            className="h-8 text-[10px] font-bold"
-                                          >
-                                            Applicants
-                                          </Button>
-                                        )}
-                                        {currentUser?.is_company_rep === 0 &&
-                                          (applyingToJobId === job.id ? (
-                                            <div className="bg-neutral-50 border border-neutral-100 p-3 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-1 duration-300">
-                                              <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">
-                                                Attach Professional Insight
-                                              </p>
-                                              <div className="flex gap-2 mb-3">
-                                                <button
-                                                  onClick={() =>
-                                                    setAppAttachmentType(
-                                                      appAttachmentType === "cv_item"
-                                                        ? "none"
-                                                        : "cv_item",
-                                                    )
-                                                  }
-                                                  className={cn(
-                                                    "p-2 rounded-lg border transition-all",
-                                                    appAttachmentType === "cv_item"
-                                                      ? "bg-black text-white border-black"
-                                                      : "bg-white text-neutral-400 border-neutral-200",
-                                                  )}
-                                                  title="Attach CV Section"
-                                                >
-                                                  <FileText className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                  onClick={() =>
-                                                    setAppAttachmentType(
-                                                      appAttachmentType ===
-                                                        "portfolio_item"
-                                                        ? "none"
-                                                        : "portfolio_item",
-                                                    )
-                                                  }
-                                                  className={cn(
-                                                    "p-2 rounded-lg border transition-all",
-                                                    appAttachmentType ===
-                                                      "portfolio_item"
-                                                      ? "bg-black text-white border-black"
-                                                      : "bg-white text-neutral-400 border-neutral-200",
-                                                  )}
-                                                  title="Attach Portfolio Item"
-                                                >
-                                                  <Layers className="w-4 h-4" />
-                                                </button>
-                                              </div>
-
-                                              {appAttachmentType === "cv_item" && (
-                                                <select
-                                                  className="w-full text-[10px] bg-white border border-neutral-200 rounded-lg px-2 py-2 mb-3 outline-none"
-                                                  onChange={(e) =>
-                                                    setAppAttachmentId(e.target.value)
-                                                  }
-                                                >
-                                                  <option value="">
-                                                    Select relevant experience...
-                                                  </option>
-                                                  {profileData?.cv?.map((item: any) => (
-                                                    <option key={item.id} value={item.id}>
-                                                      {item.title} at {item.subtitle}
-                                                    </option>
-                                                  ))}
-                                                </select>
-                                              )}
-
-                                              {appAttachmentType === "portfolio_item" && (
-                                                <select
-                                                  className="w-full text-[10px] bg-white border border-neutral-200 rounded-lg px-2 py-2 mb-3 outline-none"
-                                                  onChange={(e) =>
-                                                    setAppAttachmentId(e.target.value)
-                                                  }
-                                                >
-                                                  <option value="">
-                                                    Select relevant project...
-                                                  </option>
-                                                  {profileData?.portfolio?.map((item: any) => (
-                                                    <option key={item.id} value={item.id}>
-                                                      {item.title}
-                                                    </option>
-                                                  ))}
-                                                </select>
-                                              )}
-
-                                              <div className="flex gap-2">
-                                                <Button
-                                                  onClick={applyToJob}
-                                                  className="flex-1 rounded-lg text-[10px] h-8 font-bold"
-                                                >
-                                                  Confirm
-                                                </Button>
-                                                <Button
-                                                  variant="ghost"
-                                                  onClick={() =>
-                                                    setApplyingToJobId(null)
-                                                  }
-                                                  className="rounded-lg text-[10px] h-8"
-                                                >
-                                                  Cancel
-                                                </Button>
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <Button
-                                              onClick={() =>
-                                                setApplyingToJobId(job.id)
-                                              }
-                                              className="rounded-xl text-xs font-bold shrink-0"
-                                            >
-                                              Apply
-                                            </Button>
-                                          ))}
-                                      </div>
-                                    </div>
-                                    <div className="markdown-body text-sm text-neutral-700 mt-4 pt-4 border-t border-neutral-100 prose prose-sm max-w-none">
-                                      <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>{job.description}</Markdown>
-                                    </div>
-
-                                    {(job.skills?.length > 0 || job.topics?.length > 0) && (
-                                      <div className="mt-4 flex flex-wrap gap-2">
-                                        {job.skills?.map((s: string) => (
-                                          <span key={s} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-[10px] font-bold border border-blue-100">
-                                            {s}
-                                          </span>
-                                        ))}
-                                        {job.topics?.map((t: string) => (
-                                          <span key={t} className="px-2 py-1 bg-green-50 text-green-700 rounded-md text-[10px] font-bold border border-green-100 italic">
-                                            #{t}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                    <div className="mt-4 pt-4 border-t border-neutral-100 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
-                                      {job.created_at &&
-                                      isValid(new Date(job.created_at)) ? (
-                                        <span>
-                                          Posted{" "}
-                                          {formatDistanceToNow(
-                                            new Date(job.created_at),
-                                          )}{" "}
-                                          ago
-                                        </span>
-                                      ) : (
-                                        <span>Recently posted</span>
-                                      )}
-                                      <span>
-                                        Job ID: {job.id.toString().padStart(6, "0")}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-=======
                     <JobsFeature
                       view={activeMainTab === "applicants" ? "applicants" : "jobs"}
                       onViewChange={setActiveMainTab}
@@ -3392,7 +2162,6 @@ export default function App() {
                       profileData={profileData}
                       onApplyToJob={applyToJob}
                     />
->>>>>>> nitro
                   )}
                 </div>
               </main>

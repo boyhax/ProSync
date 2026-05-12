@@ -261,13 +261,6 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
         </div>
       </header>
 
-<<<<<<< HEAD
-      {profileData.bio && (
-        <section className="bg-neutral-50 p-6 rounded-[32px] border border-neutral-100 italic text-xs leading-relaxed text-neutral-600 mx-4">
-          <div className="markdown-body">
-            <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>{profileData.bio}</Markdown>
-          </div>
-=======
       {(profileData.bio || isOwnProfile) && (
         <section className="bg-neutral-50 rounded-[32px] border border-neutral-100 mx-4 overflow-hidden">
           {isOwnProfile && (
@@ -370,7 +363,6 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
               </div>
             </div>
           )}
->>>>>>> nitro
         </section>
       )}
 
